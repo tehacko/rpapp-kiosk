@@ -4,7 +4,6 @@ import {
   Product, 
   PaymentData, 
   ScreenType,
-  generatePaymentId,
   getKioskIdFromUrl,
   createAPIClient,
   useErrorHandler,
@@ -91,6 +90,10 @@ function KioskApp() {
       setQrCodeUrl(qrUrl);
       setPaymentData(paymentData);
       setPaymentInterval(interval);
+    },
+    onError: (error) => {
+      handleError(error, 'KioskApp.qrGeneration');
+      setIsGeneratingQR(false);
     }
   });
 
@@ -98,28 +101,18 @@ function KioskApp() {
   const startPaymentMonitoring = useCallback((paymentId: string) => {
     const interval = setInterval(async () => {
       try {
-        const response = await apiClient.get<{
-          success: boolean;
-          newTransactions: Array<{
-            description?: string;
-            amount?: number;
-            date?: string;
-          }>;
-        }>('/api/check-new-transactions');
+        // Check payment status via API
+        const response = await apiClient.get(`/api/payments/check-status/${paymentId}`);
         
-        if (response.success && response.newTransactions.length > 0) {
-          const newPayment = response.newTransactions.find((tx) => 
-            tx.description && tx.description.includes(paymentId)
-          );
-          
-          if (newPayment) {
-            setCurrentScreen('confirmation');
-            clearInterval(interval);
-            setPaymentInterval(null);
-          }
+        if ((response as any).success && (response as any).data.status === 'COMPLETED') {
+          // Payment completed successfully
+          setCurrentScreen('confirmation');
+          clearInterval(interval);
+          setPaymentInterval(null);
         }
       } catch (error) {
-        handleError(error as Error, 'KioskApp.paymentMonitoring');
+        console.error('Error checking payment status:', error);
+        handleError(error as Error, 'KioskApp.startPaymentMonitoring');
       }
     }, APP_CONFIG.PAYMENT_POLLING_INTERVAL);
 
@@ -127,34 +120,44 @@ function KioskApp() {
   }, [apiClient, handleError]);
 
   const generateQRCode = useCallback(async (product: Product, email: string) => {
+    setIsGeneratingQR(true);
     await qrGeneration.execute(async () => {
-      const paymentId = generatePaymentId();
-      const qrData = {
-        accountNumber: APP_CONFIG.PAYMENT_ACCOUNT_NUMBER,
-        amount: product.price,
-        variableSymbol: paymentId,
-        message: `Platba za ${product.name} - ${email}`,
-        currency: APP_CONFIG.PAYMENT_CURRENCY
-      };
+      try {
+        // Create payment via backend API
+        const response = await apiClient.post('/api/payments/create-qr', {
+          productId: product.id,
+          customerEmail: email,
+          kioskId: kioskId
+        });
 
-      const qrString = `${APP_CONFIG.QR_CODE_FORMAT}*ACC:${qrData.accountNumber}*AM:${qrData.amount}*CC:${APP_CONFIG.PAYMENT_CURRENCY}*MSG:${qrData.message}*X-VS:${qrData.variableSymbol}`;
-      const qrUrl = await QRCode.toDataURL(qrString, { width: APP_CONFIG.QR_CODE_WIDTH });
-      
-      const newPaymentData: PaymentData = {
-        productId: product.id,
-        productName: product.name,
-        amount: product.price,
-        customerEmail: email,
-        qrCode: qrString,
-        paymentId: paymentId
-      };
+        if (!(response as any).success) {
+          throw new Error((response as any).error || 'Failed to create payment');
+        }
 
-      // Start monitoring for payment
-      const interval = startPaymentMonitoring(paymentId);
-      
-      return { qrUrl, paymentData: newPaymentData, interval };
+        const { paymentId, qrCodeData, amount, productName, customerEmail } = (response as any).data;
+        
+        // Generate QR code image from the data returned by backend
+        const qrUrl = await QRCode.toDataURL(qrCodeData, { width: APP_CONFIG.QR_CODE_WIDTH });
+        
+        const newPaymentData: PaymentData = {
+          productId: product.id,
+          productName: productName,
+          amount: amount,
+          customerEmail: customerEmail,
+          qrCode: qrCodeData,
+          paymentId: paymentId
+        };
+
+        // Start monitoring for payment
+        const interval = startPaymentMonitoring(paymentId);
+        
+        return { qrUrl, paymentData: newPaymentData, interval };
+      } catch (error) {
+        console.error('Error creating payment:', error);
+        throw error;
+      }
     }, 'KioskApp.generateQRCode');
-  }, [qrGeneration, startPaymentMonitoring]);
+  }, [qrGeneration, startPaymentMonitoring, apiClient, kioskId]);
 
   // Navigation handlers
   const returnToProducts = useCallback(() => {
@@ -229,7 +232,13 @@ function KioskApp() {
       {/* Products Screen */}
       {currentScreen === 'products' && (
         <div className="products-screen">
-          <ConnectionStatus isConnected={isConnected} kioskId={kioskId} />
+          <div className="products-header">
+            <div className="header-left">
+              <h2 className="product-select-title">Vyberte si produkt</h2>
+              <div className="kiosk-indicator">Kiosk #{kioskId}</div>
+            </div>
+            <ConnectionStatus isConnected={isConnected} />
+          </div>
           
           <ProductGrid
             products={products}
@@ -257,7 +266,11 @@ function KioskApp() {
             />
           )}
 
-          <button onClick={returnToProducts} className="back-btn">
+          <button 
+            onClick={returnToProducts} 
+            className="back-btn"
+            type="button"
+          >
             ← Zpět na produkty
           </button>
         </div>
@@ -271,10 +284,17 @@ function KioskApp() {
         />
       )}
 
-      {/* Fullscreen Button */}
-      <button onClick={toggleFullscreen} className="fullscreen-btn-bottom">
-        📺 Celá obrazovka
-      </button>
+      {/* Fullscreen Button - Only show on kiosk screens */}
+      {currentScreen !== 'confirmation' && (
+        <button 
+          onClick={toggleFullscreen} 
+          className="fullscreen-btn-bottom"
+          type="button"
+          title="Přepnout na celou obrazovku"
+        >
+          📺 Celá obrazovka
+        </button>
+      )}
     </div>
   );
 }

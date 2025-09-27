@@ -1,16 +1,21 @@
 // Jest config for kiosk app
-export default {
+module.exports = {
   displayName: 'kiosk-app',
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   rootDir: '.',
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
-  testMatch: ['<rootDir>/src/**/*.test.{ts,tsx}'],
+  testMatch: [
+    '<rootDir>/src/**/*.test.{ts,tsx}',
+    '<rootDir>/src/**/__tests__/**/*.{ts,tsx}'
+  ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/main.tsx',
-    '!src/vite-env.d.ts'
+    '!src/vite-env.d.ts',
+    '!src/**/__tests__/**',
+    '!src/**/*.test.{ts,tsx}'
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -23,5 +28,6 @@ export default {
       }
     }]
   },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json']
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  testTimeout: 10000
 };

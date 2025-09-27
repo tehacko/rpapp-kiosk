@@ -1,20 +1,20 @@
 // React is not needed with new JSX transform
 
+import { CSS_CLASSES } from 'pi-kiosk-shared';
+
 interface ConnectionStatusProps {
   isConnected: boolean;
-  kioskId: number;
 }
 
-export function ConnectionStatus({ isConnected, kioskId }: ConnectionStatusProps) {
+export function ConnectionStatus({ isConnected }: ConnectionStatusProps) {
   return (
-    <div className="products-header">
-      <div className="header-left">
-        <h2 className="product-select-title">Vyberte si produkt</h2>
-        <div className="kiosk-indicator">Kiosk #{kioskId}</div>
-      </div>
-      <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+    <div className={`connection-status ${isConnected ? CSS_CLASSES.CONNECTED : CSS_CLASSES.DISCONNECTED}`}>
+      <div className="status-indicator" role="img" aria-label={isConnected ? 'Connected' : 'Disconnected'}>
         {isConnected ? '🟢' : '🔴'}
       </div>
+      <span className="status-text" aria-live="polite">
+        {isConnected ? 'Připojeno' : 'Odpojeno'}
+      </span>
     </div>
   );
 }

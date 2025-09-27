@@ -1,86 +1,100 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { 
-  WebSocketMessage, 
-  NetworkError, 
-  APP_CONFIG, 
-  useErrorHandler 
-} from 'pi-kiosk-shared';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useErrorHandler, getEnvironmentConfig } from 'pi-kiosk-shared';
+import { NetworkError } from 'pi-kiosk-shared';
 
-interface UseWebSocketOptions {
-  kioskId?: number;
-  url?: string;
+export interface WebSocketMessage {
+  type: string;
+  data?: any;
+  timestamp?: string;
+}
+
+export interface UseWebSocketOptions {
+  kioskId: number;
+  enabled?: boolean;
   onMessage?: (message: WebSocketMessage) => void;
-  onError?: (error: Error) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
+  onError?: (error: Error) => void;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
-  enabled?: boolean;
+  heartbeatInterval?: number;
+}
+
+export interface UseWebSocketReturn {
+  isConnected: boolean;
+  connectionError: string | null;
+  canSendMessage: boolean;
+  reconnectAttempts: number;
+  maxReconnectAttempts: number;
+  connect: () => void;
+  disconnect: () => void;
+  reconnect: () => void;
+  sendMessage: (message: Omit<WebSocketMessage, 'kioskId' | 'timestamp'>) => boolean;
 }
 
 export function useWebSocket({
-  kioskId = 1,
-  url,
+  kioskId,
+  enabled = true,
   onMessage,
-  onError,
   onConnect,
   onDisconnect,
-  reconnectInterval = APP_CONFIG.WS_RECONNECT_INTERVAL,
-  maxReconnectAttempts = APP_CONFIG.WS_RECONNECT_ATTEMPTS,
-  enabled = true
-}: UseWebSocketOptions) {
+  onError,
+  reconnectInterval = 3000,
+  maxReconnectAttempts = 5,
+  heartbeatInterval = 30000
+}: UseWebSocketOptions): UseWebSocketReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectAttempts = useRef(0);
-  const shouldReconnect = useRef(true);
+  const shouldReconnectRef = useRef(true);
   const { handleError } = useErrorHandler();
 
-  // Determine WebSocket URL
-  const wsUrl = url || (() => {
-    const baseUrl = process.env.REACT_APP_API_URL || APP_CONFIG.DEFAULT_API_URL;
-    const wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
-    const wsBaseUrl = baseUrl.replace(/^https?/, wsProtocol);
-    return `${wsBaseUrl}?kioskId=${kioskId}`;
-  })();
+  const config = getEnvironmentConfig();
+  const wsUrl = `${config.wsUrl}?kioskId=${kioskId}`;
 
   const startHeartbeat = useCallback(() => {
-    const sendHeartbeat = () => {
+    if (heartbeatTimeoutRef.current) {
+      clearTimeout(heartbeatTimeoutRef.current);
+    }
+    
+    heartbeatTimeoutRef.current = setTimeout(() => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
+        const pingMessage = {
+          type: 'ping',
+          kioskId,
+          timestamp: new Date().toISOString()
+        };
+        
         try {
-          wsRef.current.send(JSON.stringify({ 
-            type: 'ping', 
-            kioskId,
-            timestamp: new Date().toISOString()
-          }));
+          wsRef.current.send(JSON.stringify(pingMessage));
+          startHeartbeat(); // Schedule next heartbeat
         } catch (error) {
-          handleError(error as Error, 'useWebSocket.sendHeartbeat');
+          console.error('Failed to send heartbeat:', error);
         }
       }
-    };
-
-    // Send initial heartbeat
-    sendHeartbeat();
-
-    // Set up recurring heartbeat
-    heartbeatTimeoutRef.current = setInterval(
-      sendHeartbeat, 
-      APP_CONFIG.WS_HEARTBEAT_INTERVAL
-    );
-  }, [kioskId, handleError]);
+    }, heartbeatInterval);
+  }, [kioskId, heartbeatInterval]);
 
   const stopHeartbeat = useCallback(() => {
     if (heartbeatTimeoutRef.current) {
-      clearInterval(heartbeatTimeoutRef.current);
+      clearTimeout(heartbeatTimeoutRef.current);
       heartbeatTimeoutRef.current = null;
     }
   }, []);
 
   const connect = useCallback(() => {
-    if (!enabled || wsRef.current?.readyState === WebSocket.OPEN) {
+    if (!enabled || (wsRef.current && wsRef.current.readyState === WebSocket.OPEN)) {
       return;
+    }
+
+    // Clear any existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
 
     try {
@@ -91,8 +105,7 @@ export function useWebSocket({
         console.log('📡 WebSocket connected');
         setIsConnected(true);
         setConnectionError(null);
-        reconnectAttempts.current = 0;
-        
+        setReconnectAttempts(0);
         startHeartbeat();
         onConnect?.();
       };
@@ -103,7 +116,6 @@ export function useWebSocket({
           
           // Handle pong responses
           if (message.type === 'pong') {
-            // Heartbeat acknowledged
             return;
           }
           
@@ -119,25 +131,33 @@ export function useWebSocket({
         stopHeartbeat();
         onDisconnect?.();
 
-        // Attempt to reconnect if not manually closed
-        if (shouldReconnect.current && reconnectAttempts.current < maxReconnectAttempts) {
-          const delay = Math.min(
-            reconnectInterval * Math.pow(2, reconnectAttempts.current), 
-            30000 // Max 30 seconds
-          );
-          reconnectAttempts.current++;
-          
-          console.log(
-            `🔄 Attempting to reconnect in ${delay}ms (${reconnectAttempts.current}/${maxReconnectAttempts})`
-          );
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        } else if (reconnectAttempts.current >= maxReconnectAttempts) {
-          const error = new NetworkError('Nepodařilo se obnovit připojení k serveru');
-          setConnectionError(error.message);
-          handleError(error, 'useWebSocket.maxReconnectAttemptsReached');
+        // Only attempt to reconnect if not manually closed and should reconnect
+        if (shouldReconnectRef.current && event.code !== 1000) {
+          setReconnectAttempts(prev => {
+            if (prev < maxReconnectAttempts) {
+              const delay = Math.min(
+                reconnectInterval * Math.pow(2, prev), 
+                30000 // Max 30 seconds
+              );
+              
+              console.log(
+                `🔄 Attempting to reconnect in ${delay}ms (${prev + 1}/${maxReconnectAttempts})`
+              );
+              
+              reconnectTimeoutRef.current = setTimeout(() => {
+                if (enabled && shouldReconnectRef.current) {
+                  connect();
+                }
+              }, delay);
+              
+              return prev + 1;
+            } else {
+              const error = new NetworkError('Nepodařilo se obnovit připojení k serveru');
+              setConnectionError(error.message);
+              handleError(error, 'useWebSocket.maxReconnectAttemptsReached');
+              return prev;
+            }
+          });
         }
       };
 
@@ -154,22 +174,10 @@ export function useWebSocket({
       setConnectionError(networkError.message);
       handleError(networkError, 'useWebSocket.connect');
     }
-  }, [
-    enabled, 
-    wsUrl, 
-    onMessage, 
-    onError, 
-    onConnect, 
-    onDisconnect, 
-    reconnectInterval, 
-    maxReconnectAttempts,
-    startHeartbeat,
-    stopHeartbeat,
-    handleError
-  ]);
+  }, [enabled, wsUrl, kioskId, onMessage, onError, onConnect, onDisconnect, reconnectInterval, maxReconnectAttempts, startHeartbeat, stopHeartbeat, handleError]);
 
   const disconnect = useCallback(() => {
-    shouldReconnect.current = false;
+    shouldReconnectRef.current = false;
     
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -188,52 +196,71 @@ export function useWebSocket({
   }, [stopHeartbeat]);
 
   const reconnect = useCallback(() => {
-    shouldReconnect.current = true;
-    reconnectAttempts.current = 0;
-    setConnectionError(null);
     disconnect();
-    setTimeout(connect, 100); // Small delay before reconnecting
-  }, [connect, disconnect]);
+    shouldReconnectRef.current = true;
+    setReconnectAttempts(0);
+    connect();
+  }, [disconnect, connect]);
 
-  const sendMessage = useCallback((message: Partial<WebSocketMessage>) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        const fullMessage: WebSocketMessage = {
-          type: message.type || 'message',
-          kioskId,
-          timestamp: new Date().toISOString(),
-          ...message
-        };
-        
-        wsRef.current.send(JSON.stringify(fullMessage));
-        return true;
-      } catch (error) {
-        handleError(error as Error, 'useWebSocket.sendMessage');
-        return false;
-      }
+  const sendMessage = useCallback((message: Omit<WebSocketMessage, 'kioskId' | 'timestamp'>): boolean => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      return false;
     }
-    return false;
+
+    try {
+      const fullMessage = {
+        ...message,
+        kioskId,
+        timestamp: new Date().toISOString()
+      };
+      
+      wsRef.current.send(JSON.stringify(fullMessage));
+      return true;
+    } catch (error) {
+      handleError(error as Error, 'useWebSocket.sendMessage');
+      return false;
+    }
   }, [kioskId, handleError]);
 
+  // Main effect - only run when enabled changes
   useEffect(() => {
-    if (enabled) {
-      connect();
+    if (!enabled) {
+      disconnect();
+      return;
     }
 
+    shouldReconnectRef.current = true;
+    connect();
+
     return () => {
-      disconnect();
+      shouldReconnectRef.current = false;
+      
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      
+      stopHeartbeat();
+      
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Manual disconnect');
+        wsRef.current = null;
+      }
+      
+      setIsConnected(false);
+      setConnectionError(null);
     };
-  }, [enabled, connect, disconnect]);
+  }, [enabled, connect, disconnect, stopHeartbeat]);
 
   return {
     isConnected,
     connectionError,
-    reconnect,
+    canSendMessage: isConnected,
+    reconnectAttempts,
+    maxReconnectAttempts,
+    connect,
     disconnect,
-    sendMessage,
-    // Computed properties
-    canSendMessage: isConnected && !connectionError,
-    reconnectAttempts: reconnectAttempts.current,
-    maxReconnectAttempts
+    reconnect,
+    sendMessage
   };
 }

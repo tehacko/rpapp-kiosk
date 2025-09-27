@@ -9,29 +9,19 @@ configure({
   reactStrictMode: true,
 });
 
-// Suppress React 18 act warnings in tests - React Testing Library handles this automatically
-const originalError = console.error;
-beforeAll(() => {
-  console.error = (...args: any[]) => {
-    if (
-      typeof args[0] === 'string' &&
-      args[0].includes('Warning: An update to') &&
-      args[0].includes('was not wrapped in act')
-    ) {
-      return;
-    }
-    originalError.call(console, ...args);
-  };
-});
-
-afterAll(() => {
-  console.error = originalError;
-});
-
 // Mock environment variables for tests
 process.env.REACT_APP_API_URL = 'http://localhost:3015';
 process.env.REACT_APP_WS_URL = 'ws://localhost:3015';
 process.env.NODE_ENV = 'test';
+
+// Mock getEnvironmentConfig
+jest.mock('pi-kiosk-shared', () => ({
+  ...jest.requireActual('pi-kiosk-shared'),
+  getEnvironmentConfig: jest.fn(() => ({
+    apiUrl: 'http://localhost:3015',
+    wsUrl: 'ws://localhost:3015'
+  }))
+}));
 
 // Mock window.location for URL parsing tests
 Object.defineProperty(window, 'location', {
@@ -51,7 +41,38 @@ global.WebSocket = jest.fn(() => ({
   readyState: 1, // OPEN
 })) as any;
 
+// Add the missing constants
+(global.WebSocket as any).CONNECTING = 0;
+(global.WebSocket as any).OPEN = 1;
+(global.WebSocket as any).CLOSING = 2;
+(global.WebSocket as any).CLOSED = 3;
+
 // Mock QRCode
 jest.mock('qrcode', () => ({
   toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mock-qr-code')
 }));
+
+// Mock fullscreen API
+Object.defineProperty(document.documentElement, 'requestFullscreen', {
+  value: jest.fn().mockResolvedValue(undefined),
+  writable: true
+});
+
+Object.defineProperty(document, 'exitFullscreen', {
+  value: jest.fn().mockResolvedValue(undefined),
+  writable: true
+});
+
+Object.defineProperty(document, 'fullscreenElement', {
+  value: null,
+  writable: true
+});
+
+// Suppress React act() warnings in tests
+const originalError = console.error;
+console.error = function(...args: any[]) {
+  if (typeof args[0] === 'string' && args[0].includes('Warning: An update to')) {
+    return;
+  }
+  originalError.apply(console, args);
+};

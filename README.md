@@ -1,173 +1,230 @@
-# Pi Kiosk App - Customer Interface
+# RPApp Kiosk
 
-The customer-facing interface for the Pi Kiosk system, built with React and TypeScript.
+A modern React-based kiosk application for retail point-of-sale systems. This kiosk app allows customers to browse products, generate QR codes for payments, and complete purchases through a touch-friendly interface.
 
-## 🚀 Features
+## Features
 
-- **Product Browsing**: View available food and beverage items
-- **QR Payment**: Generate QR codes for seamless payments
-- **Real-time Updates**: Live inventory and order status updates
-- **Touch-Friendly UI**: Optimized for kiosk touchscreen interfaces
-- **Responsive Design**: Works on various screen sizes
-- **Error Handling**: Robust error handling and retry mechanisms
+- **Product Display**: Touch-friendly product grid with images and descriptions
+- **QR Code Payments**: Generate QR codes for Czech payment standards (SPD)
+- **Real-time Updates**: WebSocket integration for live product updates
+- **Admin Control**: Controlled by separate admin dashboard
+- **Responsive Design**: Optimized for kiosk displays and touch interfaces
+- **Error Handling**: Comprehensive error boundaries and user feedback
+- **Accessibility**: Full keyboard navigation and screen reader support
 
-## 🛠 Tech Stack
+## Architecture
 
-- **React 18** - Modern React with concurrent features
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tool and dev server
-- **React Testing Library** - Comprehensive testing
-- **Jest** - Test runner
-- **CSS3** - Modern styling with CSS variables
-- **QRCode.js** - QR code generation
-- **WebSocket** - Real-time communication
+This kiosk app is designed to work with:
 
-## 📦 Installation
+- **Backend**: `rpapp-backend` - Handles products, payments, and WebSocket connections
+- **Admin Dashboard**: `admin-app` - Manages products and kiosk inventory
+- **Shared Package**: `pi-kiosk-shared` - Common types, utilities, and configurations
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Backend server running on port 3015
+- Admin dashboard for product management
+
+### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/rpapp-kiosk.git
-cd rpapp-kiosk
-
 # Install dependencies
 npm install
 
 # Start development server
 npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
 ```
 
-## 🧪 Testing
+### Environment Configuration
+
+The app uses environment variables for configuration:
+
+```bash
+# .env.development
+REACT_APP_API_URL=http://localhost:3015
+REACT_APP_WS_URL=ws://localhost:3015
+REACT_APP_ENABLE_MOCK_PAYMENTS=true
+REACT_APP_PAYMENT_MODE=mock
+```
+
+## Testing
+
+This project includes comprehensive testing with Jest and React Testing Library:
+
+### Test Types
+
+- **Unit Tests**: Individual component and hook testing
+- **Integration Tests**: Full user flow testing
+- **Accessibility Tests**: Screen reader and keyboard navigation
+
+### Running Tests
 
 ```bash
 # Run all tests
 npm test
 
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+
 # Run tests in watch mode
 npm run test:watch
 
-# Generate coverage report
+# Run tests with coverage
 npm run test:coverage
+
+# Run tests for CI
+npm run test:ci
 ```
 
-## 🏗 Building
-
-```bash
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-## 🚀 Deployment
-
-This app is configured for automatic deployment to Railway:
-
-1. **Push to main branch** triggers automatic deployment
-2. **Tests must pass** before deployment proceeds
-3. **Production build** is created and served
-
-### Environment Variables
-
-Configure these in your Railway service:
-
-- `REACT_APP_API_URL` - Backend API URL
-- `REACT_APP_WS_URL` - WebSocket URL for real-time updates
-- `REACT_APP_ENVIRONMENT` - Environment (development/production)
-
-## 📁 Project Structure
+### Test Structure
 
 ```
 src/
-├── components/          # React components
-│   ├── PaymentForm.tsx  # Payment and QR generation
-│   ├── ProductGrid.tsx  # Product display
-│   ├── QRDisplay.tsx    # QR code display
-│   └── ...
-├── hooks/              # Custom React hooks
-│   ├── useProducts.ts  # Product data management
-│   ├── useWebSocket.ts # Real-time communication
-│   └── ...
-├── types/              # TypeScript type definitions
-└── utils/              # Utility functions
+├── components/
+│   ├── *.test.tsx          # Component unit tests
+├── hooks/
+│   ├── *.test.ts           # Hook unit tests
+├── __tests__/
+│   ├── integration.test.tsx # Integration tests
+│   └── setup.ts            # Integration test setup
+└── setupTests.ts           # Unit test setup
 ```
 
-## 🔧 Development
+## API Integration
 
-### Available Scripts
+### Backend Endpoints
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm test` - Run tests
-- `npm run lint` - Lint code
+The kiosk connects to the backend via these endpoints:
 
-### Code Quality
+- `GET /api/products?kioskId={id}` - Fetch products for specific kiosk
+- `POST /api/products/{id}/click` - Track product clicks
+- `GET /api/check-new-transactions` - Check for completed payments
+- `WebSocket /?kioskId={id}` - Real-time updates
 
-- **TypeScript** for type safety
-- **ESLint** for code linting
-- **Jest** for comprehensive testing
-- **React Testing Library** for component testing
+### WebSocket Messages
 
-## 🌐 API Integration
+The kiosk listens for these WebSocket message types:
 
-The kiosk app integrates with the Pi Kiosk backend:
+- `product_update` - Product data changes
+- `inventory_updated` - Stock level changes
+- `product_created` - New products added
+- `product_updated` - Product information updated
 
-- **Products**: Fetch available items and inventory
-- **Orders**: Create and track customer orders
-- **Payments**: Generate QR codes and handle payment flow
-- **WebSocket**: Real-time updates for inventory and order status
+## Component Architecture
 
-## 🎨 UI/UX Features
+### Core Components
 
-- **Touch-Optimized**: Large buttons and touch targets
-- **High Contrast**: Clear visibility in various lighting
-- **Loading States**: Smooth loading indicators
-- **Error Recovery**: User-friendly error messages and retry options
+- **App**: Main application container with routing
+- **ProductGrid**: Displays products in touch-friendly grid
+- **PaymentForm**: Handles email input and QR generation
+- **QRDisplay**: Shows QR code and payment status
+- **ConfirmationScreen**: Payment success confirmation
+- **ConnectionStatus**: Shows backend connection status
+- **ErrorBoundary**: Catches and displays errors gracefully
+
+### Custom Hooks
+
+- **useProducts**: Manages product data and API calls
+- **useWebSocket**: Handles real-time connection
+- **useErrorHandler**: Centralized error handling
+- **useAsyncOperation**: Async operation management
+
+## Development
+
+### Code Style
+
+- TypeScript for type safety
+- ESLint for code quality
+- Prettier for formatting
+- React best practices and patterns
+
+### Key Patterns
+
+- **Error Boundaries**: Graceful error handling
+- **Custom Hooks**: Reusable logic extraction
+- **Context API**: State management
+- **SWR**: Data fetching and caching
 - **Accessibility**: ARIA labels and keyboard navigation
 
-## 📱 Responsive Design
+## Deployment
 
-- **Desktop**: Full-screen kiosk mode
-- **Tablet**: Touch-optimized layout
-- **Mobile**: Compact mobile-friendly interface
+### Production Build
 
-## 🔒 Security
+```bash
+npm run build
+```
 
-- **Input Validation**: All user inputs are validated
-- **XSS Protection**: Proper data sanitization
-- **HTTPS**: Secure communication in production
-- **Environment Isolation**: Separate dev/prod configurations
+The build creates optimized static files in the `dist/` directory.
 
-## 🚀 Deployment Pipeline
+### Environment Variables
 
-1. **Code Push** → GitHub repository
-2. **Tests Run** → Jest test suite
-3. **Build** → Vite production build
-4. **Deploy** → Railway hosting
-5. **Health Check** → Automatic service verification
+Set these environment variables for production:
 
-## 📊 Monitoring
+```bash
+REACT_APP_API_URL=https://your-backend-url.com
+REACT_APP_WS_URL=wss://your-backend-url.com
+REACT_APP_ENABLE_MOCK_PAYMENTS=false
+REACT_APP_PAYMENT_MODE=production
+```
 
-- **Health Checks**: Automatic service monitoring
-- **Error Tracking**: Comprehensive error logging
-- **Performance**: Build size and load time optimization
+### Railway Deployment
 
-## 🤝 Contributing
+The app is configured for Railway deployment with:
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new features
-5. Ensure all tests pass
-6. Submit a pull request
+- Automatic builds on git push
+- Environment-specific configurations
+- Health checks and monitoring
 
-## 📄 License
+## Troubleshooting
 
-This project is licensed under the MIT License.
+### Common Issues
 
-## 🔗 Related Projects
+1. **WebSocket Connection Failed**
 
-- [Pi Kiosk Backend](https://github.com/yourusername/rpapp-backend) - API and business logic
-- [Pi Kiosk Admin](https://github.com/yourusername/rpapp-admin) - Management interface
-- [Pi Kiosk Shared](https://www.npmjs.com/package/pi-kiosk-shared) - Shared components and utilities
+   - Check backend server is running
+   - Verify WebSocket URL configuration
+   - Check network connectivity
+
+2. **Products Not Loading**
+
+   - Verify backend API is accessible
+   - Check kiosk ID parameter
+   - Review browser console for errors
+
+3. **QR Code Generation Fails**
+   - Check QRCode library installation
+   - Verify payment configuration
+   - Review error logs
+
+### Debug Mode
+
+Enable debug mode by setting:
+
+```bash
+REACT_APP_SHOW_DEBUG_INFO=true
+REACT_APP_LOG_LEVEL=debug
+```
+
+## Contributing
+
+1. Follow the existing code style
+2. Write tests for new features
+3. Update documentation
+4. Test on actual kiosk hardware when possible
+
+## License
+
+Private project - All rights reserved.

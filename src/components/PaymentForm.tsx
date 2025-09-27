@@ -88,7 +88,7 @@ export function PaymentForm({ product, onSubmit, isGeneratingQR }: PaymentFormPr
       <form onSubmit={handleSubmit} className="payment-form" noValidate>
         <div className="form-group">
           <label htmlFor="customer-email" className="form-label">
-            Váš email:
+            {UI_MESSAGES.EMAIL_LABEL}
             <span className="required-indicator" aria-label="Required">*</span>
           </label>
           <input
