@@ -55,9 +55,10 @@ jobs:
       - name: Build Application
         run: npm run build
 
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
       - name: Deploy to Railway
-        uses: railwayapp/cli@v3
-        with:
-          token: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service rpapp-kiosk
         env:
-          RAILWAY_SERVICE: rpapp-kiosk
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
