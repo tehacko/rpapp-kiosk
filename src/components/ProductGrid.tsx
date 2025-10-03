@@ -3,25 +3,25 @@ import { Product, UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 
 
 interface ProductGridProps {
   products: Product[];
-  onSelectProduct: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
+  getItemQuantity: (productId: number) => number;
   isLoading: boolean;
   error: Error | null;
   onRetry: () => void;
 }
 
-export function ProductGrid({ products, onSelectProduct, isLoading, error, onRetry }: ProductGridProps) {
+export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading, error, onRetry }: ProductGridProps) {
   const { retryAction } = useErrorHandler();
-
-  const handleProductSelect = (product: Product) => {
-    try {
-      onSelectProduct(product);
-    } catch (error) {
-      console.error('Error selecting product:', error);
-    }
-  };
 
   const handleRetry = () => {
     retryAction(onRetry);
+  };
+
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Adding product to cart:', product.name, 'Event:', e.type);
+    onAddToCart(product);
   };
 
   if (isLoading) {
@@ -60,59 +60,38 @@ export function ProductGrid({ products, onSelectProduct, isLoading, error, onRet
     );
   }
 
+  // Filter out products that are not available (quantity 0 or inactive)
+  const availableProducts = products.filter(product => product.quantityInStock > 0);
+
   return (
     <div className={`products-grid ${CSS_CLASSES.GRID}`} role="grid">
-      {products.map((product) => (
+      {availableProducts.map((product) => (
         <div 
           key={product.id} 
           className={`product-card ${CSS_CLASSES.CARD}`}
-          onClick={() => handleProductSelect(product)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleProductSelect(product);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-          aria-label={`Select ${product.name} for ${formatPrice(product.price)}`}
+          role="gridcell"
+          tabIndex={-1}
+          aria-label={`${product.name} - ${formatPrice(product.price)}`}
         >
-          <div className="product-image">
-            {product.imageUrl ? (
-              <img 
-                src={product.imageUrl} 
-                alt={product.name}
-                loading="lazy"
-                onError={(e) => {
-                  // Fallback to emoji if image fails to load
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const fallback = target.parentElement?.querySelector('.image-fallback');
-                  if (fallback) {
-                    fallback.textContent = product.image || '📦';
-                    (fallback as HTMLElement).style.display = 'block';
-                  }
-                }}
-              />
-            ) : (
-              <span className="product-emoji" aria-hidden="true">
-                {product.image || '📦'}
-              </span>
-            )}
-            <span className="image-fallback" style={{ display: 'none' }} aria-hidden="true"></span>
-          </div>
           
           <div className="product-info">
             <h3 className="product-name">{product.name}</h3>
-            <p className="product-description">{product.description}</p>
-            <div className="product-price" aria-label={`Price: ${formatPrice(product.price)}`}>
-              {formatPrice(product.price)}
-            </div>
           </div>
           
-          {product.quantityInStock <= 5 && product.quantityInStock > 0 && (
-            <div className="low-stock-indicator" aria-label="Low stock">
-              ⚠️ Pouze {product.quantityInStock} ks
+          <div className="product-bottom-section">
+            <button
+              onClick={(e) => handleAddToCart(e, product)}
+              className="add-to-cart-btn"
+              title="Přidat do košíku"
+              type="button"
+            >
+              🛒 Přidat do košíku
+            </button>
+          </div>
+          
+          {getItemQuantity(product.id) > 0 && (
+            <div className="cart-quantity">
+              🛒 V košíku: {getItemQuantity(product.id)}
             </div>
           )}
         </div>

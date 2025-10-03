@@ -7,9 +7,6 @@ jest.mock('./hooks/useProducts', () => ({
   useProducts: jest.fn()
 }));
 
-jest.mock('./hooks/useWebSocket', () => ({
-  useWebSocket: jest.fn()
-}));
 
 // Mock QRCode
 jest.mock('qrcode', () => ({
@@ -23,17 +20,122 @@ const mockAPIClient = {
 };
 
 jest.mock('pi-kiosk-shared', () => ({
-  ...jest.requireActual('pi-kiosk-shared'),
   createAPIClient: jest.fn(() => mockAPIClient),
   getKioskIdFromUrl: jest.fn(() => 1),
   generatePaymentId: jest.fn(() => 'pay-123456789'),
+  validateKioskId: jest.fn(() => true),
+  useServerSentEvents: jest.fn(() => ({
+    isConnected: true,
+    connectionError: null,
+    reconnect: jest.fn(),
+    disconnect: jest.fn()
+  })),
+  useProducts: jest.fn(() => mockUseProducts),
   APP_CONFIG: {
     PAYMENT_ACCOUNT_NUMBER: '1234567890',
     PAYMENT_CURRENCY: 'CZK',
     QR_CODE_WIDTH: 300,
     QR_CODE_FORMAT: 'SPD*1.0',
-    PAYMENT_POLLING_INTERVAL: 3000
-  }
+    PAYMENT_POLLING_INTERVAL: 3000,
+    PRODUCT_CACHE_TTL: 300000 // 5 minutes
+  },
+  useErrorHandler: jest.fn(() => ({
+    handleError: jest.fn(),
+    clearError: jest.fn()
+  })),
+  useAsyncOperation: jest.fn((options = {}) => {
+    let onSuccess = options.onSuccess;
+    let onError = options.onError;
+    
+    return {
+      execute: jest.fn(async (fn) => {
+        try {
+          const result = await fn();
+          if (onSuccess) {
+            onSuccess(result);
+          }
+          return result;
+        } catch (error) {
+          if (onError) {
+            onError(error);
+          }
+          throw error;
+        }
+      }),
+      data: null,
+      loading: false,
+      error: null,
+      reset: jest.fn(),
+      setData: jest.fn()
+    };
+  }),
+  UI_MESSAGES: {
+    LOADING_PRODUCTS: 'Načítání produktů...',
+    NO_PRODUCTS: 'Žádné produkty nejsou k dispozici',
+    SELECT_PRODUCT: 'Vyberte si produkt',
+    PAYMENT_SUCCESS: 'Platba byla úspěšně zpracována!',
+    CONTINUE_SHOPPING: 'Pokračovat v nákupu',
+    EMAIL_LABEL: 'Váš email',
+    FULLSCREEN_TOGGLE: 'Přepnout na celou obrazovku',
+    GENERATE_QR: 'Generovat QR kód',
+    GENERATING_QR: 'Generuji QR kód...',
+    SCAN_QR_CODE: 'Naskenujte QR kód pro platbu',
+    INVALID_EMAIL: 'Zadejte platnou emailovou adresu'
+  },
+  CSS_CLASSES: {
+    CARD: 'card',
+    LOADING: 'loading',
+    ERROR: 'error',
+    SUCCESS: 'success',
+    BUTTON_PRIMARY: 'btn-primary',
+    GRID: 'grid',
+    CONFIRMATION_SCREEN: 'confirmation-screen',
+    CONTINUE_BTN: 'continue-btn',
+    GENERATE_QR_BTN: 'generate-qr-btn',
+    EMAIL_INPUT: 'email-input',
+    FORM_LABEL: 'form-label',
+    REQUIRED_INDICATOR: 'required-indicator',
+    CONNECTED: 'connected',
+    DISCONNECTED: 'disconnected'
+  },
+  formatPrice: jest.fn((amount: number) => `${amount} Kč`),
+  
+  // Validation functions
+  validateSchema: jest.fn((data, _schema) => {
+    const errors: Record<string, string> = {};
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      errors.email = 'Zadejte platnou emailovou adresu';
+    }
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors
+    };
+  }),
+  validationSchemas: {
+    customerEmail: {
+      email: {
+        required: true,
+        email: true
+      }
+    }
+  },
+  
+  getEnvironmentConfig: jest.fn(() => ({
+    apiUrl: 'http://localhost:3015',
+    wsUrl: 'ws://localhost:3015',
+    mode: 'development'
+  })),
+  createEmptyCart: jest.fn(() => ({ items: [], totalAmount: 0, totalItems: 0 })),
+  addToCart: jest.fn((cart, product, quantity = 1) => ({ ...cart, items: [...cart.items, { product, quantity }] })),
+  removeFromCart: jest.fn((cart, productId) => ({ ...cart, items: cart.items.filter((item: any) => item.product.id !== productId) })),
+  updateCartItemQuantity: jest.fn((_cart, _productId, _quantity) => { /* ... */ }),
+  clearCart: jest.fn(() => ({ items: [], totalAmount: 0, totalItems: 0 })),
+  NetworkError: class NetworkError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NetworkError';
+    }
+  },
 }));
 
 const mockProducts = [
@@ -71,16 +173,6 @@ const mockUseProducts = {
   refresh: jest.fn()
 };
 
-const mockUseWebSocket = {
-  isConnected: true,
-  connectionError: null,
-  reconnect: jest.fn(),
-  disconnect: jest.fn(),
-  sendMessage: jest.fn(),
-  canSendMessage: true,
-  reconnectAttempts: 0,
-  maxReconnectAttempts: 5
-};
 
 describe('KioskApp', () => {
   beforeEach(() => {
@@ -88,10 +180,8 @@ describe('KioskApp', () => {
     
     // Mock the hooks
     const { useProducts } = require('./hooks/useProducts');
-    const { useWebSocket } = require('./hooks/useWebSocket');
     
     useProducts.mockReturnValue(mockUseProducts);
-    useWebSocket.mockReturnValue(mockUseWebSocket);
     
     // Mock API client responses
     mockAPIClient.post.mockResolvedValue({
@@ -316,14 +406,7 @@ describe('KioskApp', () => {
     expect(screen.getByText('Připojeno')).toBeInTheDocument();
   });
 
-  it('shows disconnected status when not connected', () => {
-    const { useWebSocket } = require('./hooks/useWebSocket');
-    useWebSocket.mockReturnValue({
-      ...mockUseWebSocket,
-      isConnected: false,
-      onDisconnect: jest.fn()
-    });
-
+  it('shows connection status', () => {
     render(<App />);
     
     // The App component manages its own connection state, so we test the initial state

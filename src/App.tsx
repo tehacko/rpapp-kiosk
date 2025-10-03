@@ -1,89 +1,180 @@
-import { useState, useEffect, useCallback } from 'react';
+import './App.css';
+import { useState, useEffect, Component, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import QRCode from 'qrcode';
-import { 
-  Product, 
-  PaymentData, 
-  ScreenType,
-  getKioskIdFromUrl,
-  createAPIClient,
-  useErrorHandler,
-  useAsyncOperation,
-  APP_CONFIG
-} from 'pi-kiosk-shared';
-
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { useServerSentEvents } from './hooks/useServerSentEvents';
+import { useProducts } from './hooks/useProducts';
 import { ProductGrid } from './components/ProductGrid';
 import { PaymentForm } from './components/PaymentForm';
 import { QRDisplay } from './components/QRDisplay';
 import { ConfirmationScreen } from './components/ConfirmationScreen';
 import { ConnectionStatus } from './components/ConnectionStatus';
+import { useCart } from './hooks/useCart';
+import { 
+  Product,
+  PaymentData, 
+  MultiProductPaymentData,
+  Cart as CartType,
+  ScreenType, 
+  getKioskIdFromUrl, 
+  validateKioskId,
+  createAPIClient, 
+  useErrorHandler, 
+  useAsyncOperation, 
+  APP_CONFIG,
+  API_ENDPOINTS,
+  validateSchema,
+  validationSchemas
+} from 'pi-kiosk-shared';
 
-import { useProducts } from './hooks/useProducts';
-import { useWebSocket } from './hooks/useWebSocket';
+// Error Boundary Component
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: { componentStack: string }) {
+    console.error('Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="error-boundary">
+          <h2>❌ Něco se pokazilo</h2>
+          <p>Omlouváme se, došlo k neočekávané chybě.</p>
+          <button onClick={() => this.setState({ hasError: false })}>
+            Zkusit znovu
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 
 function KioskApp() {
   // State management
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('products');
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | MultiProductPaymentData | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [paymentInterval, setPaymentInterval] = useState<NodeJS.Timeout | null>(null);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
+  const [kioskId, setKioskId] = useState<number | null>(null);
+  const [kioskError, setKioskError] = useState<string | null>(null);
+  const [paymentStep, setPaymentStep] = useState(1);
+  const [email, setEmail] = useState('');
   
   // Configuration
-  const kioskId = getKioskIdFromUrl();
   const apiClient = createAPIClient();
   const { handleError } = useErrorHandler();
-  
-  // Hooks
+
+  // Initialize kiosk ID with validation
+  useEffect(() => {
+    try {
+      const id = getKioskIdFromUrl();
+      if (!validateKioskId(id)) {
+        throw new Error(`Invalid kiosk ID: ${id}. Kiosk ID must be a positive number.`);
+      }
+      setKioskId(id);
+      setKioskError(null);
+    } catch (error) {
+      setKioskError(error instanceof Error ? error.message : 'Failed to initialize kiosk');
+      setKioskId(null);
+    }
+  }, []);
+
+  // Hooks - only initialize when kioskId is valid
   const { 
     products, 
     isLoading: loadingProducts, 
     error: productsError, 
     isConnected, 
     setIsConnected, 
-    trackProductClick,
+    trackProductClick, 
     refresh: refreshProducts 
-  } = useProducts({ kioskId, apiClient });
-  
-  const { isConnected: wsConnected } = useWebSocket({
-    kioskId,
+  } = useProducts({ 
+    kioskId: kioskId || 0, 
+    apiClient
+  });
+
+  const { isConnected: sseConnected } = useServerSentEvents({
+    kioskId: kioskId || 0,
+    enabled: kioskId !== null, // Only enable when kioskId is valid
     onMessage: (message) => {
       // Dispatch custom event for useProducts hook to handle
-      window.dispatchEvent(new CustomEvent('websocket-message', { 
-        detail: { data: JSON.stringify(message) } 
+      window.dispatchEvent(new CustomEvent('websocket-message', {
+        detail: { data: JSON.stringify(message) }
       }));
     },
     onConnect: () => {
-      console.log('📡 WebSocket connected');
+      console.log('📡 SSE connected');
       setIsConnected(true);
     },
-    onDisconnect: () => {
-      console.log('📡 WebSocket disconnected');
-      setIsConnected(false);
-    },
     onError: (error) => {
-      handleError(error, 'KioskApp.WebSocket');
+      console.warn('SSE error (non-blocking):', error);
+      // Don't call handleError to avoid showing error to user
     }
   });
 
-  // Product selection handler
-  const handleProductSelect = useCallback(async (product: Product) => {
+  // Cart functionality
+  const {
+    cart,
+    addItem: addToCart,
+    clearAll: clearCart,
+    getItemQuantity,
+    isEmpty: isCartEmpty
+  } = useCart();
+
+  // Product click tracking for analytics
+  const handleProductClick = useCallback(async (product: Product) => {
     try {
-      // Track the click
       await trackProductClick(product.id);
-      setSelectedProduct(product);
-      setCurrentScreen('payment');
     } catch (error) {
-      handleError(error as Error, 'KioskApp.handleProductSelect');
+      console.warn('Failed to track product click:', error);
     }
-  }, [trackProductClick, handleError]);
+  }, [trackProductClick]);
+
+  // Cart handlers
+  const handleAddToCart = useCallback((product: Product) => {
+    console.log('App.tsx handleAddToCart called for:', product.name, 'Cart before:', cart.totalItems);
+    addToCart(product);
+    console.log('App.tsx after addToCart call');
+    // Track the product click for analytics
+    handleProductClick(product);
+  }, [addToCart, handleProductClick, cart.totalItems]);
+
+  const handleProceedToCheckout = useCallback(() => {
+    if (!isCartEmpty) {
+      setCurrentScreen('payment');
+    }
+  }, [isCartEmpty]);
+
+  const handleClearCart = useCallback(() => {
+    clearCart();
+  }, [clearCart]);
 
   // QR Code generation using consistent async operation pattern
   const qrGeneration = useAsyncOperation<{
     qrUrl: string;
-    paymentData: PaymentData;
+    paymentData: PaymentData | MultiProductPaymentData;
     interval: NodeJS.Timeout;
   }>({
     onSuccess: ({ qrUrl, paymentData, interval }) => {
@@ -102,8 +193,8 @@ function KioskApp() {
     const interval = setInterval(async () => {
       try {
         // Check payment status via API
-        const response = await apiClient.get(`/api/payments/check-status/${paymentId}`);
-        
+        const response = await apiClient.get(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
+
         if ((response as any).success && (response as any).data.status === 'COMPLETED') {
           // Payment completed successfully
           setCurrentScreen('confirmation');
@@ -119,30 +210,35 @@ function KioskApp() {
     return interval;
   }, [apiClient, handleError]);
 
-  const generateQRCode = useCallback(async (product: Product, email: string) => {
+
+  // Generate QR code for cart-based payment
+  const generateQRCodeForCart = useCallback(async (cart: CartType, email: string) => {
     setIsGeneratingQR(true);
     await qrGeneration.execute(async () => {
       try {
-        // Create payment via backend API
-        const response = await apiClient.post('/api/payments/create-qr', {
-          productId: product.id,
+        // Create multi-product payment via backend API
+        const response = await apiClient.post(API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR, {
+          items: cart.items.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity
+          })),
+          totalAmount: cart.totalAmount,
           customerEmail: email,
           kioskId: kioskId
         });
 
         if (!(response as any).success) {
-          throw new Error((response as any).error || 'Failed to create payment');
+          throw new Error((response as any).error || 'Failed to create multi-product payment');
         }
 
-        const { paymentId, qrCodeData, amount, productName, customerEmail } = (response as any).data;
-        
+        const { paymentId, qrCodeData, amount, customerEmail } = (response as any).data;
+
         // Generate QR code image from the data returned by backend
         const qrUrl = await QRCode.toDataURL(qrCodeData, { width: APP_CONFIG.QR_CODE_WIDTH });
-        
-        const newPaymentData: PaymentData = {
-          productId: product.id,
-          productName: productName,
-          amount: amount,
+
+        const newPaymentData: MultiProductPaymentData = {
+          items: cart.items,
+          totalAmount: amount,
           customerEmail: customerEmail,
           qrCode: qrCodeData,
           paymentId: paymentId
@@ -150,13 +246,13 @@ function KioskApp() {
 
         // Start monitoring for payment
         const interval = startPaymentMonitoring(paymentId);
-        
+
         return { qrUrl, paymentData: newPaymentData, interval };
       } catch (error) {
-        console.error('Error creating payment:', error);
+        console.error('Error creating multi-product payment:', error);
         throw error;
       }
-    }, 'KioskApp.generateQRCode');
+    }, 'KioskApp.generateQRCodeForCart');
   }, [qrGeneration, startPaymentMonitoring, apiClient, kioskId]);
 
   // Navigation handlers
@@ -166,22 +262,27 @@ function KioskApp() {
       clearInterval(paymentInterval);
       setPaymentInterval(null);
     }
-    
+
     setCurrentScreen('products');
-    setSelectedProduct(null);
     setPaymentData(null);
     setQrCodeUrl('');
     setIsGeneratingQR(false);
   }, [paymentInterval]);
 
-  const handlePaymentSubmit = useCallback((email: string) => {
-    if (!selectedProduct) {
-      handleError(new Error('No product selected'), 'KioskApp.handlePaymentSubmit');
+  const handlePaymentSubmit = useCallback((email: string, paymentMethod: 'qr' | 'stripe') => {
+    if (!isCartEmpty) {
+      if (paymentMethod === 'qr') {
+        // Cart-based QR payment
+        generateQRCodeForCart(cart, email);
+      } else if (paymentMethod === 'stripe') {
+        // TODO: Implement Stripe payment
+        handleError(new Error('Stripe payment not yet implemented'), 'KioskApp.handlePaymentSubmit');
+      }
+    } else {
+      handleError(new Error('No items in cart'), 'KioskApp.handlePaymentSubmit');
       return;
     }
-    
-    generateQRCode(selectedProduct, email);
-  }, [selectedProduct, generateQRCode, handleError]);
+  }, [cart, isCartEmpty, generateQRCodeForCart, handleError]);
 
   // Fullscreen toggle
   const toggleFullscreen = useCallback(() => {
@@ -213,10 +314,13 @@ function KioskApp() {
     enterFullscreen();
   }, []);
 
-  // Update connection status when WebSocket status changes
+  // Update connection status when SSE status changes
+  // Only update if SSE is connected, don't update on disconnect to avoid false negatives
   useEffect(() => {
-    setIsConnected(wsConnected);
-  }, [wsConnected, setIsConnected]);
+    if (sseConnected) {
+      setIsConnected(true);
+    }
+  }, [sseConnected, setIsConnected]);
 
   // Cleanup payment interval on unmount
   useEffect(() => {
@@ -226,76 +330,189 @@ function KioskApp() {
       }
     };
   }, [paymentInterval]);
+  
+  // Show error screen if kiosk ID is invalid
+  if (kioskError || kioskId === null) {
+    return (
+      <ErrorBoundary>
+        <div className="kiosk-app kiosk-mode">
+          <div className="error-screen">
+            <div className="error-content">
+              <h1>❌ Chyba konfigurace kiosku</h1>
+              <p className="error-message">{kioskError}</p>
+              <div className="error-instructions">
+                <h3>Jak opravit:</h3>
+                <ol>
+                  <li>Přidejte <code>?kioskId=X</code> na konec URL</li>
+                  <li>Nahraďte X číslem vašeho kiosku (např. 1, 2, 3...)</li>
+                  <li>Příklad: <code>https://your-domain.com?kioskId=1</code></li>
+                </ol>
+              </div>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="retry-btn"
+              >
+                🔄 Zkusit znovu
+              </button>
+            </div>
+          </div>
+        </div>
+      </ErrorBoundary>
+    );
+  }
 
   return (
-    <div className="kiosk-app">
-      {/* Products Screen */}
-      {currentScreen === 'products' && (
-        <div className="products-screen">
-          <div className="products-header">
-            <div className="header-left">
-              <h2 className="product-select-title">Vyberte si produkt</h2>
-              <div className="kiosk-indicator">Kiosk #{kioskId}</div>
+    <ErrorBoundary>
+      <div className="kiosk-app kiosk-mode">
+        {/* Products Screen */}
+        {currentScreen === 'products' && (
+          <div className="products-screen">
+            <div className="products-header">
+              {!isCartEmpty ? (
+                <div className="cart-header">
+                  <div className="cart-buttons-header">
+              <button
+                onClick={handleProceedToCheckout}
+                className="checkout-btn-header"
+                type="button"
+              >
+                💳 Zaplatit
+              </button>
+              <button
+                onClick={handleClearCart}
+                className="clear-cart-btn-header"
+                type="button"
+              >
+                🛒 Vyprázdnit košík ({cart.totalItems})
+              </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="header-left">
+                  <h2 className="product-select-title">Vyberte si produkt</h2>
+                </div>
+              )}
+              {isCartEmpty && <ConnectionStatus isConnected={isConnected} />}
             </div>
-            <ConnectionStatus isConnected={isConnected} />
-          </div>
-          
-          <ProductGrid
-            products={products}
-            onSelectProduct={handleProductSelect}
-            isLoading={loadingProducts}
-            error={productsError}
-            onRetry={refreshProducts}
-          />
-        </div>
-      )}
 
-      {/* Payment Screen */}
-      {currentScreen === 'payment' && selectedProduct && (
-        <div className="payment-screen">
-          <PaymentForm
-            product={selectedProduct}
-            onSubmit={handlePaymentSubmit}
-            isGeneratingQR={isGeneratingQR}
-          />
-
-          {qrCodeUrl && paymentData && (
-            <QRDisplay
-              qrCodeUrl={qrCodeUrl}
-              paymentData={paymentData}
+            <ProductGrid
+              products={products}
+              onAddToCart={handleAddToCart}
+              getItemQuantity={getItemQuantity}
+              isLoading={loadingProducts}
+              error={productsError}
+              onRetry={refreshProducts}
             />
-          )}
 
-          <button 
-            onClick={returnToProducts} 
-            className="back-btn"
+
+          </div>
+        )}
+
+        {/* Payment Screen - Full Overlay */}
+        {currentScreen === 'payment' && !isCartEmpty && (
+          <div className="payment-screen-overlay">
+            <div className="payment-screen-content">
+              {/* Payment Header with Back Button */}
+            <div className="payment-header">
+              <div className="cart-buttons-header">
+                {paymentStep !== 3 && (
+                  <button
+                    onClick={() => {
+                      if (paymentStep === 1) {
+                        setPaymentStep(2);
+                      } else if (paymentStep === 2) {
+                        if (email.trim()) {
+                          try {
+                            const validation = validateSchema({ email: email.trim() }, validationSchemas.customerEmail);
+                            if (validation.isValid) {
+                              setPaymentStep(3);
+                            } else {
+                              // Show error overlay
+                              const errorOverlay = document.querySelector('.error-overlay') as HTMLElement;
+                              if (errorOverlay) {
+                                errorOverlay.style.display = 'flex';
+                              }
+                            }
+                          } catch (error) {
+                            // Show error overlay
+                            const errorOverlay = document.querySelector('.error-overlay') as HTMLElement;
+                            if (errorOverlay) {
+                              errorOverlay.style.display = 'flex';
+                            }
+                          }
+                        } else {
+                          // Show error overlay
+                          const errorOverlay = document.querySelector('.error-overlay') as HTMLElement;
+                          if (errorOverlay) {
+                            errorOverlay.style.display = 'flex';
+                          }
+                        }
+                      }
+                    }}
+                    className="checkout-btn-header"
+                    type="button"
+                  >
+                    {paymentStep === 2 ? '➡️ Další krok' : '💳 Zaplatit'}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (paymentStep === 1) {
+                      setCurrentScreen('products');
+                      setPaymentStep(1);
+                    } else {
+                      setPaymentStep(paymentStep - 1);
+                    }
+                  }}
+                  className="clear-cart-btn-header"
+                  type="button"
+                >
+                  ← Zpět
+                </button>
+              </div>
+            </div>
+
+              <PaymentForm
+                cart={cart}
+                onSubmit={handlePaymentSubmit}
+                isGeneratingQR={isGeneratingQR}
+                currentStep={paymentStep}
+                email={email}
+                onEmailChange={setEmail}
+                onStepChange={setPaymentStep}
+              />
+
+              {qrCodeUrl && paymentData && (
+                <QRDisplay
+                  qrCodeUrl={qrCodeUrl}
+                  paymentData={paymentData}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Screen */}
+        {currentScreen === 'confirmation' && paymentData && (
+          <ConfirmationScreen
+            paymentData={paymentData}
+            onContinue={returnToProducts}
+          />
+        )}
+
+        {/* Fullscreen Button - Only show on kiosk screens */}
+        {currentScreen !== 'confirmation' && (
+          <button
+            onClick={toggleFullscreen}
+            className="fullscreen-btn-bottom"
             type="button"
+            title="Přepnout na celou obrazovku"
           >
-            ← Zpět na produkty
+            📺 Celá obrazovka
           </button>
-        </div>
-      )}
-
-      {/* Confirmation Screen */}
-      {currentScreen === 'confirmation' && paymentData && (
-        <ConfirmationScreen
-          paymentData={paymentData}
-          onContinue={returnToProducts}
-        />
-      )}
-
-      {/* Fullscreen Button - Only show on kiosk screens */}
-      {currentScreen !== 'confirmation' && (
-        <button 
-          onClick={toggleFullscreen} 
-          className="fullscreen-btn-bottom"
-          type="button"
-          title="Přepnout na celou obrazovku"
-        >
-          📺 Celá obrazovka
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }
 

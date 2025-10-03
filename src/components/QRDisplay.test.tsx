@@ -4,7 +4,7 @@ import { PaymentData } from 'pi-kiosk-shared';
 
 // Mock the shared package
 jest.mock('pi-kiosk-shared', () => ({
-  ...jest.requireActual('pi-kiosk-shared'),
+  PaymentData: {},
   UI_MESSAGES: {
     PAYMENT_WAITING: 'Čekám na platbu...'
   },
@@ -12,7 +12,7 @@ jest.mock('pi-kiosk-shared', () => ({
     CARD: 'card',
     LOADING: 'loading'
   },
-  formatPrice: (amount: number) => `${amount} Kč`
+  formatPrice: jest.fn((amount: number) => `${amount} Kč`)
 }));
 
 const mockPaymentData: PaymentData = {

@@ -28,6 +28,7 @@ This kiosk app is designed to work with:
 - npm or yarn
 - Backend server running on port 3015
 - Admin dashboard for product management
+- Kiosk records in database
 
 ### Installation
 
@@ -44,6 +45,22 @@ npm run build
 # Start production server
 npm start
 ```
+
+### Kiosk Instance Configuration
+
+Each kiosk instance requires a unique `kioskId` parameter in the URL:
+
+```bash
+# Development
+http://localhost:5173?kioskId=1
+http://localhost:5173?kioskId=2
+
+# Production
+https://your-domain.com?kioskId=1
+https://your-domain.com?kioskId=2
+```
+
+**Important**: The app will not load without a valid `kioskId` parameter. See [KIOSK-DEPLOYMENT.md](./KIOSK-DEPLOYMENT.md) for detailed deployment instructions.
 
 ### Environment Configuration
 
@@ -138,7 +155,6 @@ The kiosk listens for these WebSocket message types:
 ### Custom Hooks
 
 - **useProducts**: Manages product data and API calls
-- **useWebSocket**: Handles real-time connection
 - **useErrorHandler**: Centralized error handling
 - **useAsyncOperation**: Async operation management
 

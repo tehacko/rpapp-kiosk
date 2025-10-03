@@ -8,7 +8,8 @@ import {
   APP_CONFIG,
   getKioskIdFromUrl,
   getKioskSecretFromUrl,
-  useErrorHandler
+  useErrorHandler,
+  API_ENDPOINTS
 } from 'pi-kiosk-shared';
 
 interface UseProductsOptions {
@@ -51,7 +52,7 @@ export function useProducts(options: UseProductsOptions = {}) {
     isLoading,
     isValidating 
   } = useSWR(
-    `/api/products?kioskId=${kioskId}`,
+    `${API_ENDPOINTS.PRODUCTS}?kioskId=${kioskId}`,
     fetcher,
     {
       // Revalidate every 30 seconds as fallback
@@ -91,12 +92,16 @@ export function useProducts(options: UseProductsOptions = {}) {
           
           // Handle different types of updates
           if (message.updateType === 'inventory_updated') {
-            console.log('📦 Inventory updated, refreshing products...');
-            // Force immediate revalidation for inventory changes
+            console.log('📦 Inventory or visibility updated, refreshing products...');
+            // Force immediate revalidation for inventory/visibility changes
             mutate(undefined, { revalidate: true });
           } else if (message.updateType === 'product_created' || message.updateType === 'product_updated') {
             console.log('🛍️ Product data changed, refreshing products...');
             // Force immediate revalidation for product changes
+            mutate(undefined, { revalidate: true });
+          } else if (message.updateType === 'product_deleted') {
+            console.log('🗑️ Product deleted, refreshing products...');
+            // Force immediate revalidation for product deletion
             mutate(undefined, { revalidate: true });
           } else {
             // Default behavior for other updates
@@ -133,7 +138,7 @@ export function useProducts(options: UseProductsOptions = {}) {
   // Track product click with error handling
   const trackProductClick = useCallback(async (productId: number): Promise<void> => {
     try {
-      await apiClient.post(`/api/products/${productId}/click`, { kioskId });
+      await apiClient.post(API_ENDPOINTS.PRODUCT_CLICK.replace(':id', productId.toString()), { kioskId });
     } catch (error) {
       // Don't throw - clicking should still work even if tracking fails
       handleError(error as Error, 'useProducts.trackProductClick');

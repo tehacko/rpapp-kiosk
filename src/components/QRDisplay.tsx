@@ -1,9 +1,9 @@
 // React import not needed with new JSX transform
-import { PaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice } from 'pi-kiosk-shared';
+import { PaymentData, MultiProductPaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice } from 'pi-kiosk-shared';
 
 interface QRDisplayProps {
   qrCodeUrl: string;
-  paymentData: PaymentData;
+  paymentData: PaymentData | MultiProductPaymentData;
 }
 
 export function QRDisplay({ qrCodeUrl, paymentData }: QRDisplayProps) {
@@ -23,12 +23,18 @@ export function QRDisplay({ qrCodeUrl, paymentData }: QRDisplayProps) {
       <div className={`payment-info ${CSS_CLASSES.CARD}`}>
         <div className="info-row">
           <span className="info-label">Částka:</span>
-          <span className="info-value">{formatPrice(paymentData.amount)}</span>
+          <span className="info-value">{formatPrice('amount' in paymentData ? paymentData.amount : paymentData.totalAmount)}</span>
         </div>
         <div className="info-row">
           <span className="info-label">Email:</span>
           <span className="info-value">{paymentData.customerEmail}</span>
         </div>
+        {'items' in paymentData && (
+          <div className="info-row">
+            <span className="info-label">Položky:</span>
+            <span className="info-value">{paymentData.items.length} produktů</span>
+          </div>
+        )}
       </div>
       
       <div className={`payment-status ${CSS_CLASSES.LOADING}`}>

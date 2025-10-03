@@ -1,8 +1,8 @@
 // React import not needed with new JSX transform
-import { PaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice } from 'pi-kiosk-shared';
+import { PaymentData, MultiProductPaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice } from 'pi-kiosk-shared';
 
 interface ConfirmationScreenProps {
-  paymentData: PaymentData;
+  paymentData: PaymentData | MultiProductPaymentData;
   onContinue: () => void;
 }
 
@@ -14,13 +14,26 @@ export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScre
       
       <div className={`payment-details ${CSS_CLASSES.CARD}`}>
         <h3>Detaily platby</h3>
-        <div className="detail-row">
-          <span className="detail-label">Produkt:</span>
-          <span className="detail-value">{paymentData.productName}</span>
-        </div>
+        
+        {/* Single Product Payment */}
+        {'productName' in paymentData && (
+          <div className="detail-row">
+            <span className="detail-label">Produkt:</span>
+            <span className="detail-value">{paymentData.productName}</span>
+          </div>
+        )}
+        
+        {/* Multi-Product Payment */}
+        {'items' in paymentData && (
+          <div className="detail-row">
+            <span className="detail-label">Položky:</span>
+            <span className="detail-value">{paymentData.items.length} produktů</span>
+          </div>
+        )}
+        
         <div className="detail-row">
           <span className="detail-label">Částka:</span>
-          <span className="detail-value">{formatPrice(paymentData.amount)}</span>
+          <span className="detail-value">{formatPrice('amount' in paymentData ? paymentData.amount : paymentData.totalAmount)}</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Email:</span>

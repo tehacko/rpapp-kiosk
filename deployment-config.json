@@ -1,0 +1,24 @@
+{
+  "kiosks": [
+    {
+      "id": 1,
+      "url": "https://your-domain.com?kioskId=1",
+      "name": "Kiosk 1",
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "url": "https://your-domain.com?kioskId=2",
+      "name": "Kiosk 2",
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "url": "https://your-domain.com?kioskId=3",
+      "name": "Kiosk 3",
+      "status": "pending"
+    }
+  ],
+  "baseUrl": "https://your-domain.com",
+  "lastUpdated": "2025-10-01T17:39:34.144Z"
+}

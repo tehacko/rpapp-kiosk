@@ -3,6 +3,27 @@ import userEvent from '@testing-library/user-event';
 import { ProductGrid } from './ProductGrid';
 import { Product } from 'pi-kiosk-shared';
 
+// Mock useErrorHandler
+jest.mock('pi-kiosk-shared', () => ({
+  Product: {},
+  UI_MESSAGES: {
+    LOADING_PRODUCTS: 'Načítání produktů...',
+    NO_PRODUCTS: 'Žádné produkty nejsou k dispozici',
+    NETWORK_ERROR: 'Chyba sítě'
+  },
+  CSS_CLASSES: {
+    LOADING: 'loading',
+    ERROR: 'error',
+    CARD: 'card',
+    GRID: 'grid',
+    BUTTON_PRIMARY: 'btn-primary'
+  },
+  useErrorHandler: () => ({
+    retryAction: jest.fn((action) => action())
+  }),
+  formatPrice: (price: number) => `${price} Kč`
+}));
+
 const mockProducts: Product[] = [
   {
     id: 1,
@@ -40,7 +61,8 @@ const mockProducts: Product[] = [
 ];
 
 describe('ProductGrid', () => {
-  const mockOnSelectProduct = jest.fn();
+  const mockOnAddToCart = jest.fn();
+  const mockGetItemQuantity = jest.fn(() => 0);
   const mockOnRetry = jest.fn();
 
   beforeEach(() => {
@@ -51,7 +73,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
@@ -73,7 +96,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={[]}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={true}
         error={null}
         onRetry={mockOnRetry}
@@ -89,7 +113,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={[]}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={error}
         onRetry={mockOnRetry}
@@ -104,7 +129,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={[]}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
@@ -114,60 +140,23 @@ describe('ProductGrid', () => {
     expect(screen.getByText('Žádné produkty nejsou k dispozici')).toBeInTheDocument();
   });
 
-  it('calls onSelectProduct when product is clicked', async () => {
+  it('calls onAddToCart when add to cart button is clicked', async () => {
     const user = userEvent.setup();
     render(
       <ProductGrid
         products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
       />
     );
 
-    const productCard = screen.getByText('Test Product 1').closest('.product-card');
-    await user.click(productCard!);
+    const addToCartButton = screen.getByText('🛒 Přidat do košíku');
+    await user.click(addToCartButton);
 
-    expect(mockOnSelectProduct).toHaveBeenCalledWith(mockProducts[0]);
-  });
-
-  it('calls onSelectProduct when product is activated with keyboard', async () => {
-    const user = userEvent.setup();
-    render(
-      <ProductGrid
-        products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
-        isLoading={false}
-        error={null}
-        onRetry={mockOnRetry}
-      />
-    );
-
-    const productCard = screen.getByText('Test Product 1').closest('.product-card');
-    (productCard as HTMLElement).focus();
-    await user.keyboard('{Enter}');
-
-    expect(mockOnSelectProduct).toHaveBeenCalledWith(mockProducts[0]);
-  });
-
-  it('calls onSelectProduct when product is activated with space key', async () => {
-    const user = userEvent.setup();
-    render(
-      <ProductGrid
-        products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
-        isLoading={false}
-        error={null}
-        onRetry={mockOnRetry}
-      />
-    );
-
-    const productCard = screen.getByText('Test Product 1').closest('.product-card');
-    (productCard as HTMLElement).focus();
-    await user.keyboard(' ');
-
-    expect(mockOnSelectProduct).toHaveBeenCalledWith(mockProducts[0]);
+    expect(mockOnAddToCart).toHaveBeenCalledWith(mockProducts[0]);
   });
 
   it('calls onRetry when retry button is clicked', async () => {
@@ -176,7 +165,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={[]}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={error}
         onRetry={mockOnRetry}
@@ -193,7 +183,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
@@ -207,7 +198,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
@@ -227,7 +219,8 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
@@ -247,45 +240,57 @@ describe('ProductGrid', () => {
     render(
       <ProductGrid
         products={mockProducts}
-        onSelectProduct={mockOnSelectProduct}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
       />
     );
 
-    const productCards = screen.getAllByRole('button');
-    expect(productCards).toHaveLength(3);
+    const addToCartButtons = screen.getAllByText('🛒 Přidat do košíku');
+    expect(addToCartButtons).toHaveLength(3);
 
-    productCards.forEach((card, index) => {
-      expect(card).toHaveAttribute('aria-label', `Select ${mockProducts[index].name} for ${mockProducts[index].price} Kč`);
-      expect(card).toHaveAttribute('tabIndex', '0');
+    addToCartButtons.forEach((button) => {
+      expect(button).toHaveAttribute('title', 'Přidat do košíku');
     });
   });
 
-  it('handles error in onSelectProduct gracefully', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const user = userEvent.setup();
-    
-    const errorOnSelect = jest.fn().mockImplementation(() => {
-      throw new Error('Selection error');
+  it('shows cart quantity when item is in cart', () => {
+    const mockGetItemQuantityWithCart = jest.fn((productId: number) => {
+      return productId === 1 ? 2 : 0;
     });
 
     render(
       <ProductGrid
         products={mockProducts}
-        onSelectProduct={errorOnSelect}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantityWithCart}
         isLoading={false}
         error={null}
         onRetry={mockOnRetry}
       />
     );
 
-    const productCard = screen.getByText('Test Product 1').closest('.product-card');
-    await user.click(productCard!);
+    expect(screen.getByText('🛒 V košíku: 2')).toBeInTheDocument();
+  });
 
-    expect(consoleSpy).toHaveBeenCalledWith('Error selecting product:', expect.any(Error));
-    
-    consoleSpy.mockRestore();
+  it('disables add to cart button when product is out of stock', () => {
+    const outOfStockProduct = { ...mockProducts[0], quantityInStock: 0 };
+    const productsWithOutOfStock = [outOfStockProduct, ...mockProducts.slice(1)];
+
+    render(
+      <ProductGrid
+        products={productsWithOutOfStock}
+        onAddToCart={mockOnAddToCart}
+        getItemQuantity={mockGetItemQuantity}
+        isLoading={false}
+        error={null}
+        onRetry={mockOnRetry}
+      />
+    );
+
+    const addToCartButtons = screen.getAllByText('🛒 Přidat do košíku');
+    expect(addToCartButtons[0]).toBeDisabled();
   });
 });

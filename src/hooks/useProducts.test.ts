@@ -4,14 +4,31 @@ import { createAPIClient } from 'pi-kiosk-shared';
 
 // Mock the shared package
 jest.mock('pi-kiosk-shared', () => ({
-  ...jest.requireActual('pi-kiosk-shared'),
   createAPIClient: jest.fn(),
   getKioskIdFromUrl: jest.fn(() => 1),
   getKioskSecretFromUrl: jest.fn(() => null),
   useErrorHandler: jest.fn(() => ({
     handleError: jest.fn(),
     retryAction: jest.fn()
-  }))
+  })),
+  UI_MESSAGES: {
+    LOADING_PRODUCTS: 'Načítání produktů...',
+    NO_PRODUCTS: 'Žádné produkty nejsou k dispozici'
+  },
+  CSS_CLASSES: {
+    LOADING: 'loading',
+    ERROR: 'error'
+  },
+  APP_CONFIG: {
+    apiUrl: 'http://localhost:3015',
+    wsUrl: 'ws://localhost:3015',
+    PAYMENT_ACCOUNT_NUMBER: '1234567890',
+    PAYMENT_CURRENCY: 'CZK',
+    QR_CODE_WIDTH: 300,
+    QR_CODE_FORMAT: 'SPD*1.0',
+    PAYMENT_POLLING_INTERVAL: 3000,
+    PRODUCT_CACHE_TTL: 300000 // 5 minutes
+  }
 }));
 
 // Mock SWR
