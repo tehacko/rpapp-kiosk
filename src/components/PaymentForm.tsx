@@ -14,9 +14,11 @@ interface PaymentFormProps {
   email: string;
   onEmailChange: (email: string) => void;
   onStepChange: (step: number) => void;
+  selectedPaymentMethod?: 'qr' | 'stripe';
+  onPaymentMethodSelect?: (method: 'qr' | 'stripe') => void;
 }
 
-export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email, onEmailChange, onStepChange }: PaymentFormProps) {
+export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email, onEmailChange, onStepChange, selectedPaymentMethod, onPaymentMethodSelect }: PaymentFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showErrorOverlay, setShowErrorOverlay] = useState(false);
 
@@ -40,8 +42,20 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
   };
 
   const handlePaymentMethodSubmit = (paymentMethod: 'qr' | 'stripe') => {
-    onStepChange(4); // Move to processing step
-    onSubmit(email.trim(), paymentMethod);
+    if (onPaymentMethodSelect) {
+      onPaymentMethodSelect(paymentMethod);
+    }
+    onStepChange(4); // Move to payment processing step
+  };
+
+  const handleConfirmPayment = () => {
+    console.log('PaymentForm: handleConfirmPayment called', { selectedPaymentMethod, email: email.trim() });
+    if (selectedPaymentMethod) {
+      console.log('PaymentForm: calling onSubmit with', { email: email.trim(), selectedPaymentMethod });
+      onSubmit(email.trim(), selectedPaymentMethod);
+    } else {
+      console.log('PaymentForm: no selectedPaymentMethod, not calling onSubmit');
+    }
   };
 
   return (
@@ -162,8 +176,53 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
         </div>
       )}
 
-      {/* Step 4: Processing */}
-      {currentStep === 4 && (
+      {/* Step 4: Payment Processing Confirmation */}
+      {currentStep === 4 && selectedPaymentMethod && (
+        <div className="step-content">
+          <div className="payment-confirmation">
+            <h3 className="payment-confirmation-title">Potvrzení platby</h3>
+            
+            <div className="payment-details">
+              <div className="payment-detail-row">
+                <span className="detail-label">Email:</span>
+                <span className="detail-value">{email}</span>
+              </div>
+              <div className="payment-detail-row">
+                <span className="detail-label">Způsob platby:</span>
+                <span className="detail-value">
+                  {selectedPaymentMethod === 'qr' ? '📱 QR kód' : '💳 Stripe'}
+                </span>
+              </div>
+              <div className="payment-detail-row">
+                <span className="detail-label">Částka:</span>
+                <span className="detail-value">{formatPrice(cart.totalAmount)}</span>
+              </div>
+            </div>
+
+            <div className="payment-actions">
+              <button
+                type="button"
+                onClick={handleConfirmPayment}
+                className={`confirm-payment-btn ${selectedPaymentMethod === 'qr' ? CSS_CLASSES.BUTTON_PRIMARY : CSS_CLASSES.BUTTON_SECONDARY}`}
+                disabled={isGeneratingQR}
+              >
+                {selectedPaymentMethod === 'qr' ? 'Generovat QR kód' : 'Přejít k platbě Stripe'}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => onStepChange(3)}
+                className="back-to-methods-btn"
+              >
+                ← Zpět na výběr platby
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 5: Processing */}
+      {currentStep === 5 && (
         <div className="step-content">
           <div className="processing-message">
             {isGeneratingQR ? (

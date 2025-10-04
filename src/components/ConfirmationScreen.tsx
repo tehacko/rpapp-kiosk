@@ -7,12 +7,17 @@ interface ConfirmationScreenProps {
 }
 
 export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScreenProps) {
+  // Check if this is a payment completion from FIO bank
+  const isPaymentCompleted = 'status' in paymentData && paymentData.status === 'completed';
+  
   return (
     <div className={`confirmation-screen ${CSS_CLASSES.SCREEN}`}>
       <div className="success-icon" role="img" aria-label="Success">✅</div>
-      <h2 className="confirmation-title">{UI_MESSAGES.PAYMENT_SUCCESS}</h2>
+      <h2 className="confirmation-title">
+        {isPaymentCompleted ? 'Zaplaceno!' : UI_MESSAGES.PAYMENT_SUCCESS}
+      </h2>
       
-      <div className={`payment-details ${CSS_CLASSES.CARD}`}>
+      <div className="payment-details">
         <h3>Detaily platby</h3>
         
         {/* Single Product Payment */}
@@ -43,11 +48,11 @@ export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScre
       
       <button 
         onClick={onContinue} 
-        className={`continue-btn ${CSS_CLASSES.BUTTON_PRIMARY}`}
+        className="continue-btn"
         type="button"
-        aria-label={UI_MESSAGES.CONTINUE_SHOPPING}
+        aria-label="Zpět k produktům"
       >
-        🏠 {UI_MESSAGES.CONTINUE_SHOPPING}
+        🏠 Zpět k produktům
       </button>
     </div>
   );

@@ -1,45 +1,40 @@
 // React import not needed with new JSX transform
-import { PaymentData, MultiProductPaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice } from 'pi-kiosk-shared';
+import { PaymentData, MultiProductPaymentData, CSS_CLASSES } from 'pi-kiosk-shared';
 
 interface QRDisplayProps {
   qrCodeUrl: string;
   paymentData: PaymentData | MultiProductPaymentData;
+  onCancel: () => void;
 }
 
-export function QRDisplay({ qrCodeUrl, paymentData }: QRDisplayProps) {
+export function QRDisplay({ qrCodeUrl, paymentData, onCancel }: QRDisplayProps) {
   return (
     <div className={`qr-section ${CSS_CLASSES.CARD}`}>
-      <h3 className="qr-title">Naskenujte QR kód pro platbu</h3>
-      
-      <div className="qr-code-container">
-        <img 
-          src={qrCodeUrl} 
-          alt="QR Code pro platbu" 
-          className="qr-code"
-          loading="lazy"
-        />
+      <div className="qr-content">
+        <div className="qr-code-container">
+          <img 
+            src={qrCodeUrl} 
+            alt="QR Code pro platbu" 
+            className="qr-code"
+            loading="lazy"
+          />
+        </div>
+        
+        <div className={`payment-status ${CSS_CLASSES.LOADING}`}>
+          <p className="status-text">Čekám na platbu</p>
+          <div className="loading-spinner" aria-hidden="true"></div>
+        </div>
       </div>
       
-      <div className={`payment-info ${CSS_CLASSES.CARD}`}>
-        <div className="info-row">
-          <span className="info-label">Částka:</span>
-          <span className="info-value">{formatPrice('amount' in paymentData ? paymentData.amount : paymentData.totalAmount)}</span>
-        </div>
-        <div className="info-row">
-          <span className="info-label">Email:</span>
-          <span className="info-value">{paymentData.customerEmail}</span>
-        </div>
-        {'items' in paymentData && (
-          <div className="info-row">
-            <span className="info-label">Položky:</span>
-            <span className="info-value">{paymentData.items.length} produktů</span>
-          </div>
-        )}
-      </div>
-      
-      <div className={`payment-status ${CSS_CLASSES.LOADING}`}>
-        <div className="loading-spinner" aria-hidden="true"></div>
-        <p className="status-text">{UI_MESSAGES.PAYMENT_WAITING}</p>
+      <div className="qr-actions">
+        <button
+          onClick={onCancel}
+          className="cancel-qr-btn"
+          type="button"
+          aria-label="Zrušit platbu"
+        >
+          ← Zpět k výběru platby
+        </button>
       </div>
     </div>
   );

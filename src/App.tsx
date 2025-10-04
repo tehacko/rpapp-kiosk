@@ -9,6 +9,7 @@ import { PaymentForm } from './components/PaymentForm';
 import { QRDisplay } from './components/QRDisplay';
 import { ConfirmationScreen } from './components/ConfirmationScreen';
 import { ConnectionStatus } from './components/ConnectionStatus';
+import { StripePayment } from './components/StripePayment';
 import { useCart } from './hooks/useCart';
 import { 
   Product,
@@ -24,7 +25,9 @@ import {
   APP_CONFIG,
   API_ENDPOINTS,
   validateSchema,
-  validationSchemas
+  validationSchemas,
+  getEnvironmentConfig,
+  getCurrentEnvironment
 } from 'pi-kiosk-shared';
 
 // Error Boundary Component
@@ -81,10 +84,22 @@ function KioskApp() {
   const [kioskError, setKioskError] = useState<string | null>(null);
   const [paymentStep, setPaymentStep] = useState(1);
   const [email, setEmail] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qr' | 'stripe' | undefined>(undefined);
   
   // Configuration
   const apiClient = createAPIClient();
   const { handleError } = useErrorHandler();
+  
+  // Debug: Log the API configuration
+  useEffect(() => {
+    const config = getEnvironmentConfig();
+    console.log('🔧 Frontend API Configuration:', {
+      apiUrl: config.apiUrl,
+      environment: getCurrentEnvironment(),
+      nodeEnv: process.env.NODE_ENV,
+      location: typeof window !== 'undefined' ? window.location.href : 'server'
+    });
+  }, []);
 
   // Initialize kiosk ID with validation
   useEffect(() => {
@@ -119,6 +134,23 @@ function KioskApp() {
     kioskId: kioskId || 0,
     enabled: kioskId !== null, // Only enable when kioskId is valid
     onMessage: (message) => {
+      // Handle payment completion
+      if (message.type === 'PAYMENT_COMPLETED') {
+        console.log('🎉 Payment completed!', message);
+        setCurrentScreen('confirmation');
+        setPaymentData({
+          transactionId: message.transactionId,
+          amount: message.amount,
+          status: 'completed',
+          message: message.message
+        });
+        // Clear QR code and reset payment step
+        setQrCodeUrl('');
+        setPaymentStep(1);
+        setSelectedPaymentMethod(undefined);
+        return;
+      }
+      
       // Dispatch custom event for useProducts hook to handle
       window.dispatchEvent(new CustomEvent('websocket-message', {
         detail: { data: JSON.stringify(message) }
@@ -171,6 +203,24 @@ function KioskApp() {
     clearCart();
   }, [clearCart]);
 
+  // Cancel QR payment and go back to payment method selection
+  const handleCancelQRPayment = useCallback(() => {
+    // Clear payment monitoring interval
+    if (paymentInterval) {
+      clearInterval(paymentInterval);
+      setPaymentInterval(null);
+    }
+
+    // Clear QR code and payment data
+    setQrCodeUrl('');
+    setPaymentData(null);
+    setIsGeneratingQR(false);
+    
+    // Go back to payment method selection (step 3)
+    setPaymentStep(3);
+    setSelectedPaymentMethod(undefined);
+  }, [paymentInterval]);
+
   // QR Code generation using consistent async operation pattern
   const qrGeneration = useAsyncOperation<{
     qrUrl: string;
@@ -213,47 +263,70 @@ function KioskApp() {
 
   // Generate QR code for cart-based payment
   const generateQRCodeForCart = useCallback(async (cart: CartType, email: string) => {
+    console.log('Starting QR code generation for cart:', cart, 'email:', email);
     setIsGeneratingQR(true);
-    await qrGeneration.execute(async () => {
-      try {
-        // Create multi-product payment via backend API
-        const response = await apiClient.post(API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR, {
-          items: cart.items.map(item => ({
-            productId: item.product.id,
-            quantity: item.quantity
-          })),
-          totalAmount: cart.totalAmount,
-          customerEmail: email,
-          kioskId: kioskId
-        });
+    try {
+      // Create multi-product payment via backend API
+      console.log('Calling API endpoint:', API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR);
+      const response = await apiClient.post(API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR, {
+        items: cart.items.map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity
+        })),
+        totalAmount: cart.totalAmount,
+        customerEmail: email,
+        kioskId: kioskId
+      });
 
-        if (!(response as any).success) {
-          throw new Error((response as any).error || 'Failed to create multi-product payment');
-        }
+      console.log('API response:', response);
 
-        const { paymentId, qrCodeData, amount, customerEmail } = (response as any).data;
-
-        // Generate QR code image from the data returned by backend
-        const qrUrl = await QRCode.toDataURL(qrCodeData, { width: APP_CONFIG.QR_CODE_WIDTH });
-
-        const newPaymentData: MultiProductPaymentData = {
-          items: cart.items,
-          totalAmount: amount,
-          customerEmail: customerEmail,
-          qrCode: qrCodeData,
-          paymentId: paymentId
-        };
-
-        // Start monitoring for payment
-        const interval = startPaymentMonitoring(paymentId);
-
-        return { qrUrl, paymentData: newPaymentData, interval };
-      } catch (error) {
-        console.error('Error creating multi-product payment:', error);
-        throw error;
+      if (!(response as any).success) {
+        throw new Error((response as any).error || 'Failed to create multi-product payment');
       }
-    }, 'KioskApp.generateQRCodeForCart');
-  }, [qrGeneration, startPaymentMonitoring, apiClient, kioskId]);
+
+      const { paymentId, qrCodeData, amount, customerEmail } = (response as any).data;
+      console.log('QR code data received:', { paymentId, qrCodeData, amount, customerEmail });
+
+      // Generate QR code image from the data returned by backend
+      // Optimized for bank app scanning with high error correction
+      console.log('Generating QR code image...');
+      const qrUrl = await QRCode.toDataURL(qrCodeData, { 
+        width: APP_CONFIG.QR_CODE_WIDTH,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'H' // High error correction for better scanning
+      });
+
+      console.log('QR code image generated:', qrUrl);
+
+      const newPaymentData: MultiProductPaymentData = {
+        items: cart.items,
+        totalAmount: amount,
+        customerEmail: customerEmail,
+        qrCode: qrCodeData,
+        paymentId: paymentId
+      };
+
+      // Set the QR code URL and payment data
+      console.log('Setting QR code URL and payment data...');
+      setQrCodeUrl(qrUrl);
+      setPaymentData(newPaymentData);
+
+      // Start monitoring for payment
+      const interval = startPaymentMonitoring(paymentId);
+      setPaymentInterval(interval);
+
+      console.log('QR code generated successfully:', { qrUrl, paymentData: newPaymentData });
+    } catch (error) {
+      console.error('Error creating multi-product payment:', error);
+      handleError(error as Error, 'KioskApp.generateQRCodeForCart');
+    } finally {
+      setIsGeneratingQR(false);
+    }
+  }, [apiClient, kioskId, startPaymentMonitoring, handleError]);
 
   // Navigation handlers
   const returnToProducts = useCallback(() => {
@@ -263,22 +336,34 @@ function KioskApp() {
       setPaymentInterval(null);
     }
 
+    // Clear cart when returning to products
+    clearCart();
+    
     setCurrentScreen('products');
     setPaymentData(null);
     setQrCodeUrl('');
     setIsGeneratingQR(false);
-  }, [paymentInterval]);
+    setSelectedPaymentMethod(undefined);
+    setPaymentStep(1);
+  }, [paymentInterval, clearCart]);
 
   const handlePaymentSubmit = useCallback((email: string, paymentMethod: 'qr' | 'stripe') => {
+    console.log('App: handlePaymentSubmit called', { email, paymentMethod, isCartEmpty, cart });
     if (!isCartEmpty) {
       if (paymentMethod === 'qr') {
-        // Cart-based QR payment
+        console.log('App: setting paymentStep to 5 and calling generateQRCodeForCart');
+        setPaymentStep(5); // Move to processing step
+        // Cart-based QR payment - generate QR code immediately
         generateQRCodeForCart(cart, email);
       } else if (paymentMethod === 'stripe') {
-        // TODO: Implement Stripe payment
-        handleError(new Error('Stripe payment not yet implemented'), 'KioskApp.handlePaymentSubmit');
+        console.log('App: setting paymentStep to 5 for Stripe');
+        setPaymentStep(5); // Move to processing step for Stripe
+        // Stripe payment - no additional processing needed here
+        // The StripePayment component will handle the payment flow
+        console.log('Stripe payment initiated for email:', email);
       }
     } else {
+      console.log('App: cart is empty, showing error');
       handleError(new Error('No items in cart'), 'KioskApp.handlePaymentSubmit');
       return;
     }
@@ -368,7 +453,7 @@ function KioskApp() {
         {currentScreen === 'products' && (
           <div className="products-screen">
             <div className="products-header">
-              {!isCartEmpty ? (
+              {!isCartEmpty && !qrCodeUrl ? (
                 <div className="cart-header">
                   <div className="cart-buttons-header">
               <button
@@ -387,11 +472,11 @@ function KioskApp() {
               </button>
                   </div>
                 </div>
-              ) : (
+              ) : !qrCodeUrl ? (
                 <div className="header-left">
                   <h2 className="product-select-title">Vyberte si produkt</h2>
                 </div>
-              )}
+              ) : null}
               {isCartEmpty && <ConnectionStatus isConnected={isConnected} />}
             </div>
 
@@ -415,7 +500,7 @@ function KioskApp() {
               {/* Payment Header with Back Button */}
             <div className="payment-header">
               <div className="cart-buttons-header">
-                {paymentStep !== 3 && (
+                {paymentStep !== 3 && paymentStep !== 4 && (
                   <button
                     onClick={() => {
                       if (paymentStep === 1) {
@@ -458,6 +543,8 @@ function KioskApp() {
                 <button
                   onClick={() => {
                     if (paymentStep === 1) {
+                      // Clear cart when going back to products from payment step 1
+                      clearCart();
                       setCurrentScreen('products');
                       setPaymentStep(1);
                     } else {
@@ -472,20 +559,48 @@ function KioskApp() {
               </div>
             </div>
 
-              <PaymentForm
-                cart={cart}
-                onSubmit={handlePaymentSubmit}
-                isGeneratingQR={isGeneratingQR}
-                currentStep={paymentStep}
-                email={email}
-                onEmailChange={setEmail}
-                onStepChange={setPaymentStep}
-              />
+              {!qrCodeUrl && (
+                <PaymentForm
+                  cart={cart}
+                  onSubmit={handlePaymentSubmit}
+                  isGeneratingQR={isGeneratingQR}
+                  currentStep={paymentStep}
+                  email={email}
+                  onEmailChange={setEmail}
+                  onStepChange={setPaymentStep}
+                  selectedPaymentMethod={selectedPaymentMethod}
+                  onPaymentMethodSelect={setSelectedPaymentMethod}
+                />
+              )}
 
               {qrCodeUrl && paymentData && (
                 <QRDisplay
                   qrCodeUrl={qrCodeUrl}
                   paymentData={paymentData}
+                  onCancel={handleCancelQRPayment}
+                />
+              )}
+
+              {/* Stripe Payment Component */}
+              {selectedPaymentMethod === 'stripe' && paymentStep === 5 && !qrCodeUrl && (
+                <StripePayment
+                  cart={cart}
+                  email={email}
+                  kioskId={kioskId || 0}
+                  onPaymentSuccess={(paymentData) => {
+                    console.log('Stripe payment successful:', paymentData);
+                    // Handle successful payment - could show confirmation screen
+                    setCurrentScreen('confirmation');
+                    setPaymentData(paymentData);
+                  }}
+                  onPaymentError={(error) => {
+                    console.error('Stripe payment error:', error);
+                    handleError(new Error(error), 'KioskApp.StripePayment');
+                  }}
+                  onCancel={() => {
+                    setPaymentStep(3); // Go back to payment method selection
+                    setSelectedPaymentMethod(undefined);
+                  }}
                 />
               )}
             </div>
