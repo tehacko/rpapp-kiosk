@@ -4,6 +4,7 @@ import { NetworkError } from 'pi-kiosk-shared';
 
 export interface SSEMessage {
   type: string;
+  updateType?: string;
   data?: any;
   timestamp?: string;
 }

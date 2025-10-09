@@ -16,9 +16,8 @@
     "test:ci": "jest --config jest.config.cjs --ci --coverage --maxWorkers=2"
   },
   "dependencies": {
-    "@stripe/stripe-js": "^2.4.0",
     "@types/qrcode": "^1.5.5",
-    "pi-kiosk-shared": "^1.0.16",
+    "pi-kiosk-shared": "^1.0.18",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

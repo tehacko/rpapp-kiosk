@@ -30,6 +30,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={mockPaymentData}
+        onCancel={() => {}}
       />
     );
 
@@ -45,6 +46,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={mockPaymentData}
+        onCancel={() => {}}
       />
     );
 
@@ -58,6 +60,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={mockPaymentData}
+        onCancel={() => {}}
       />
     );
 
@@ -73,6 +76,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={mockPaymentData}
+        onCancel={() => {}}
       />
     );
 
@@ -93,6 +97,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={highAmountPayment}
+        onCancel={() => {}}
       />
     );
 
@@ -109,6 +114,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={differentEmailPayment}
+        onCancel={() => {}}
       />
     );
 
@@ -125,6 +131,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={differentProductPayment}
+        onCancel={() => {}}
       />
     );
 
@@ -137,6 +144,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={mockPaymentData}
+        onCancel={() => {}}
       />
     );
 
@@ -161,6 +169,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,minimal-qr"
         paymentData={minimalPaymentData}
+        onCancel={() => {}}
       />
     );
 
@@ -179,6 +188,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={specialCharPayment}
+        onCancel={() => {}}
       />
     );
 
@@ -196,6 +206,7 @@ describe('QRDisplay', () => {
       <QRDisplay
         qrCodeUrl="data:image/png;base64,mock-qr-code"
         paymentData={longEmailPayment}
+        onCancel={() => {}}
       />
     );
 

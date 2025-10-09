@@ -8,14 +8,14 @@ import {
 
 interface PaymentFormProps {
   cart: Cart;
-  onSubmit: (email: string, paymentMethod: 'qr' | 'stripe') => void;
+  onSubmit: (email: string, paymentMethod: 'qr' | 'thepay') => void;
   isGeneratingQR: boolean;
   currentStep: number;
   email: string;
   onEmailChange: (email: string) => void;
   onStepChange: (step: number) => void;
-  selectedPaymentMethod?: 'qr' | 'stripe';
-  onPaymentMethodSelect?: (method: 'qr' | 'stripe') => void;
+  selectedPaymentMethod?: 'qr' | 'thepay';
+  onPaymentMethodSelect?: (method: 'qr' | 'thepay') => void;
 }
 
 export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email, onEmailChange, onStepChange, selectedPaymentMethod, onPaymentMethodSelect }: PaymentFormProps) {
@@ -41,7 +41,7 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
     setErrors({});
   };
 
-  const handlePaymentMethodSubmit = (paymentMethod: 'qr' | 'stripe') => {
+  const handlePaymentMethodSubmit = (paymentMethod: 'qr' | 'thepay') => {
     if (onPaymentMethodSelect) {
       onPaymentMethodSelect(paymentMethod);
     }
@@ -165,12 +165,12 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
             
             <button 
               type="button"
-              onClick={() => handlePaymentMethodSubmit('stripe')}
-              className={`payment-method-btn stripe-btn ${CSS_CLASSES.BUTTON_SECONDARY}`}
+              onClick={() => handlePaymentMethodSubmit('thepay')}
+              className={`payment-method-btn thepay-btn ${CSS_CLASSES.BUTTON_SECONDARY}`}
               disabled={isGeneratingQR}
             >
               <span aria-hidden="true">💳</span>
-              Stripe
+              ThePay
             </button>
           </div>
         </div>
@@ -190,7 +190,7 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
               <div className="payment-detail-row">
                 <span className="detail-label">Způsob platby:</span>
                 <span className="detail-value">
-                  {selectedPaymentMethod === 'qr' ? '📱 QR kód' : '💳 Stripe'}
+                  {selectedPaymentMethod === 'qr' ? '📱 QR kód' : '💳 ThePay'}
                 </span>
               </div>
               <div className="payment-detail-row">
@@ -206,7 +206,7 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
                 className={`confirm-payment-btn ${selectedPaymentMethod === 'qr' ? CSS_CLASSES.BUTTON_PRIMARY : CSS_CLASSES.BUTTON_SECONDARY}`}
                 disabled={isGeneratingQR}
               >
-                {selectedPaymentMethod === 'qr' ? 'Generovat QR kód' : 'Přejít k platbě Stripe'}
+                {selectedPaymentMethod === 'qr' ? 'Generovat QR kód' : 'Přejít k platbě ThePay'}
               </button>
               
               <button

@@ -9,7 +9,7 @@ import { PaymentForm } from './components/PaymentForm';
 import { QRDisplay } from './components/QRDisplay';
 import { ConfirmationScreen } from './components/ConfirmationScreen';
 import { ConnectionStatus } from './components/ConnectionStatus';
-import { StripePayment } from './components/StripePayment';
+import { ThePayPayment } from './components/ThePayPayment';
 import { useCart } from './hooks/useCart';
 import { 
   Product,
@@ -21,7 +21,6 @@ import {
   validateKioskId,
   createAPIClient, 
   useErrorHandler, 
-  useAsyncOperation, 
   APP_CONFIG,
   API_ENDPOINTS,
   validateSchema,
@@ -78,13 +77,13 @@ function KioskApp() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('products');
   const [paymentData, setPaymentData] = useState<PaymentData | MultiProductPaymentData | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [paymentInterval, setPaymentInterval] = useState<NodeJS.Timeout | null>(null);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [kioskId, setKioskId] = useState<number | null>(null);
   const [kioskError, setKioskError] = useState<string | null>(null);
   const [paymentStep, setPaymentStep] = useState(1);
   const [email, setEmail] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qr' | 'stripe' | undefined>(undefined);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qr' | 'thepay' | undefined>(undefined);
   
   // Configuration
   const apiClient = createAPIClient();
@@ -135,14 +134,57 @@ function KioskApp() {
     enabled: kioskId !== null, // Only enable when kioskId is valid
     onMessage: (message) => {
       // Handle payment completion
-      if (message.type === 'PAYMENT_COMPLETED') {
+      if (message.type === 'product_update' && message.updateType === 'payment_completed') {
         console.log('🎉 Payment completed!', message);
         setCurrentScreen('confirmation');
         setPaymentData({
-          transactionId: message.transactionId,
-          amount: message.amount,
-          status: 'completed',
-          message: message.message
+          paymentId: message.data?.paymentId || 'unknown',
+          amount: message.data?.amount || 0,
+          totalAmount: message.data?.amount || 0,
+          customerEmail: email, // Use the email from the current form
+          qrCode: qrCodeUrl, // Use the current QR code URL
+          items: cart.items || [], // Use the current cart items
+          status: 'completed' // Mark as completed
+        });
+        // Clear QR code and reset payment step
+        setQrCodeUrl('');
+        setPaymentStep(1);
+        setSelectedPaymentMethod(undefined);
+        return;
+      }
+      
+      // Handle payment timeout
+      if (message.type === 'product_update' && message.updateType === 'payment_timeout') {
+        console.log('⏰ Payment monitoring timed out:', message);
+        setCurrentScreen('confirmation');
+        setPaymentData({
+          paymentId: message.data?.paymentId || 'unknown',
+          amount: message.data?.amount || 0,
+          totalAmount: message.data?.amount || 0,
+          customerEmail: email,
+          qrCode: qrCodeUrl,
+          items: cart.items || [],
+          status: 'timeout' // Mark as timeout
+        });
+        // Clear QR code and reset payment step
+        setQrCodeUrl('');
+        setPaymentStep(1);
+        setSelectedPaymentMethod(undefined);
+        return;
+      }
+      
+      // Handle payment failure
+      if (message.type === 'product_update' && message.updateType === 'payment_failed') {
+        console.log('❌ Payment failed:', message);
+        setCurrentScreen('confirmation');
+        setPaymentData({
+          paymentId: message.data?.paymentId || 'unknown',
+          amount: message.data?.amount || 0,
+          totalAmount: message.data?.amount || 0,
+          customerEmail: email,
+          qrCode: qrCodeUrl,
+          items: cart.items || [],
+          status: 'failed' // Mark as failed
         });
         // Clear QR code and reset payment step
         setQrCodeUrl('');
@@ -205,12 +247,12 @@ function KioskApp() {
 
   // Cancel QR payment and go back to payment method selection
   const handleCancelQRPayment = useCallback(() => {
-    // Clear payment monitoring interval
-    if (paymentInterval) {
-      clearInterval(paymentInterval);
-      setPaymentInterval(null);
+    // Clear polling interval if active
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
     }
-
+    
     // Clear QR code and payment data
     setQrCodeUrl('');
     setPaymentData(null);
@@ -219,46 +261,87 @@ function KioskApp() {
     // Go back to payment method selection (step 3)
     setPaymentStep(3);
     setSelectedPaymentMethod(undefined);
-  }, [paymentInterval]);
+  }, [pollingInterval]);
 
-  // QR Code generation using consistent async operation pattern
-  const qrGeneration = useAsyncOperation<{
-    qrUrl: string;
-    paymentData: PaymentData | MultiProductPaymentData;
-    interval: NodeJS.Timeout;
-  }>({
-    onSuccess: ({ qrUrl, paymentData, interval }) => {
-      setQrCodeUrl(qrUrl);
-      setPaymentData(paymentData);
-      setPaymentInterval(interval);
-    },
-    onError: (error) => {
-      handleError(error, 'KioskApp.qrGeneration');
-      setIsGeneratingQR(false);
-    }
-  });
 
-  // Payment monitoring
-  const startPaymentMonitoring = useCallback((paymentId: string) => {
+  // Fallback polling mechanism with timeout
+  const startPollingFallback = useCallback((paymentId: string) => {
+    console.log('🔄 Starting fallback polling for payment:', paymentId);
+    let pollCount = 0;
+    const maxPolls = 100; // 5 minutes at 3-second intervals
+    const startTime = Date.now();
+    
     const interval = setInterval(async () => {
       try {
-        // Check payment status via API
-        const response = await apiClient.get(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
-
-        if ((response as any).success && (response as any).data.status === 'COMPLETED') {
-          // Payment completed successfully
-          setCurrentScreen('confirmation');
+        pollCount++;
+        const elapsedTime = Date.now() - startTime;
+        
+        if (pollCount > maxPolls || elapsedTime > 300000) { // 5 minutes timeout
+          console.log('⏰ Polling fallback timed out');
           clearInterval(interval);
-          setPaymentInterval(null);
+          return;
+        }
+        
+        const response = await apiClient.get(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
+        if ((response as any).success && (response as any).data.status === 'COMPLETED') {
+          console.log('✅ Payment completed via polling fallback');
+          clearInterval(interval);
+          setCurrentScreen('confirmation');
+          setPaymentData({
+            paymentId: paymentId,
+            amount: (response as any).data.amount || 0,
+            totalAmount: (response as any).data.amount || 0,
+            customerEmail: email,
+            qrCode: qrCodeUrl,
+            items: cart.items || []
+          });
+          setQrCodeUrl('');
+          setPaymentStep(1);
+          setSelectedPaymentMethod(undefined);
         }
       } catch (error) {
-        console.error('Error checking payment status:', error);
-        handleError(error as Error, 'KioskApp.startPaymentMonitoring');
+        console.error('❌ Polling fallback error:', error);
+        if (pollCount > 10) {
+          console.error('❌ Too many polling errors, stopping');
+          clearInterval(interval);
+        }
       }
-    }, APP_CONFIG.PAYMENT_POLLING_INTERVAL);
+    }, 3000); // Poll every 3 seconds
 
+    setPollingInterval(interval);
     return interval;
-  }, [apiClient, handleError]);
+  }, [apiClient, email, qrCodeUrl, cart.items]);
+
+  // Payment monitoring - Start SSE-based monitoring with fallback
+  const startPaymentMonitoring = useCallback(async (paymentId: string) => {
+    try {
+      console.log('🔍 Starting payment monitoring for QR payment:', paymentId);
+      console.log('🔍 Endpoint:', API_ENDPOINTS.PAYMENT_START_MONITORING);
+      
+      // Check if SSE is connected
+      if (!sseConnected) {
+        console.warn('⚠️ SSE not connected, using polling fallback');
+        return startPollingFallback(paymentId);
+      }
+      
+      // Start SSE-based payment monitoring
+      const response = await apiClient.post(API_ENDPOINTS.PAYMENT_START_MONITORING, {
+        paymentId: paymentId
+      }) as { success: boolean; message?: string; data?: any };
+      
+      if (response.success) {
+        console.log('✅ Payment monitoring started successfully:', response);
+        // The payment completion will be handled via SSE in the onMessage callback
+        return null;
+      } else {
+        throw new Error(response.message || 'Failed to start payment monitoring');
+      }
+    } catch (error) {
+      console.error('❌ Error starting payment monitoring, using fallback:', error);
+      // Fallback to polling if SSE monitoring fails
+      return startPollingFallback(paymentId);
+    }
+  }, [apiClient, handleError, sseConnected, startPollingFallback]);
 
 
   // Generate QR code for cart-based payment
@@ -315,9 +398,8 @@ function KioskApp() {
       setQrCodeUrl(qrUrl);
       setPaymentData(newPaymentData);
 
-      // Start monitoring for payment
-      const interval = startPaymentMonitoring(paymentId);
-      setPaymentInterval(interval);
+      // Start SSE-based payment monitoring
+      await startPaymentMonitoring(paymentId);
 
       console.log('QR code generated successfully:', { qrUrl, paymentData: newPaymentData });
     } catch (error) {
@@ -330,24 +412,23 @@ function KioskApp() {
 
   // Navigation handlers
   const returnToProducts = useCallback(() => {
-    // Clear payment monitoring interval
-    if (paymentInterval) {
-      clearInterval(paymentInterval);
-      setPaymentInterval(null);
+    // Clear polling interval if active
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
     }
-
+    
     // Clear cart when returning to products
     clearCart();
-    
     setCurrentScreen('products');
     setPaymentData(null);
     setQrCodeUrl('');
     setIsGeneratingQR(false);
     setSelectedPaymentMethod(undefined);
     setPaymentStep(1);
-  }, [paymentInterval, clearCart]);
+  }, [clearCart, pollingInterval]);
 
-  const handlePaymentSubmit = useCallback((email: string, paymentMethod: 'qr' | 'stripe') => {
+  const handlePaymentSubmit = useCallback((email: string, paymentMethod: 'qr' | 'thepay') => {
     console.log('App: handlePaymentSubmit called', { email, paymentMethod, isCartEmpty, cart });
     if (!isCartEmpty) {
       if (paymentMethod === 'qr') {
@@ -355,12 +436,12 @@ function KioskApp() {
         setPaymentStep(5); // Move to processing step
         // Cart-based QR payment - generate QR code immediately
         generateQRCodeForCart(cart, email);
-      } else if (paymentMethod === 'stripe') {
-        console.log('App: setting paymentStep to 5 for Stripe');
-        setPaymentStep(5); // Move to processing step for Stripe
-        // Stripe payment - no additional processing needed here
-        // The StripePayment component will handle the payment flow
-        console.log('Stripe payment initiated for email:', email);
+      } else if (paymentMethod === 'thepay') {
+        console.log('App: setting paymentStep to 5 for ThePay');
+        setPaymentStep(5); // Move to processing step for ThePay
+        // ThePay payment - no additional processing needed here
+        // The ThePayPayment component will handle the payment flow
+        console.log('ThePay payment initiated for email:', email);
       }
     } else {
       console.log('App: cart is empty, showing error');
@@ -407,14 +488,14 @@ function KioskApp() {
     }
   }, [sseConnected, setIsConnected]);
 
-  // Cleanup payment interval on unmount
+  // Cleanup polling interval on unmount
   useEffect(() => {
     return () => {
-      if (paymentInterval) {
-        clearInterval(paymentInterval);
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
       }
     };
-  }, [paymentInterval]);
+  }, [pollingInterval]);
   
   // Show error screen if kiosk ID is invalid
   if (kioskError || kioskId === null) {
@@ -581,21 +662,21 @@ function KioskApp() {
                 />
               )}
 
-              {/* Stripe Payment Component */}
-              {selectedPaymentMethod === 'stripe' && paymentStep === 5 && !qrCodeUrl && (
-                <StripePayment
+              {/* ThePay Payment Component */}
+              {selectedPaymentMethod === 'thepay' && paymentStep === 5 && !qrCodeUrl && (
+                <ThePayPayment
                   cart={cart}
                   email={email}
                   kioskId={kioskId || 0}
                   onPaymentSuccess={(paymentData) => {
-                    console.log('Stripe payment successful:', paymentData);
+                    console.log('ThePay payment successful:', paymentData);
                     // Handle successful payment - could show confirmation screen
                     setCurrentScreen('confirmation');
                     setPaymentData(paymentData);
                   }}
                   onPaymentError={(error) => {
-                    console.error('Stripe payment error:', error);
-                    handleError(new Error(error), 'KioskApp.StripePayment');
+                    console.error('ThePay payment error:', error);
+                    handleError(new Error(error), 'KioskApp.ThePayPayment');
                   }}
                   onCancel={() => {
                     setPaymentStep(3); // Go back to payment method selection

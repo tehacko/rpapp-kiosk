@@ -7,7 +7,7 @@ interface QRDisplayProps {
   onCancel: () => void;
 }
 
-export function QRDisplay({ qrCodeUrl, paymentData, onCancel }: QRDisplayProps) {
+export function QRDisplay({ qrCodeUrl, onCancel }: QRDisplayProps) {
   return (
     <div className={`qr-section ${CSS_CLASSES.CARD}`}>
       <div className="qr-content">

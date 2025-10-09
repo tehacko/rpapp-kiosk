@@ -9,12 +9,19 @@ interface ConfirmationScreenProps {
 export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScreenProps) {
   // Check if this is a payment completion from FIO bank
   const isPaymentCompleted = 'status' in paymentData && paymentData.status === 'completed';
+  const isPaymentTimeout = 'status' in paymentData && paymentData.status === 'timeout';
+  const isPaymentFailed = 'status' in paymentData && paymentData.status === 'failed';
   
   return (
     <div className={`confirmation-screen ${CSS_CLASSES.SCREEN}`}>
-      <div className="success-icon" role="img" aria-label="Success">✅</div>
+      <div className="success-icon" role="img" aria-label="Success">
+        {isPaymentCompleted ? '✅' : isPaymentTimeout ? '⏰' : isPaymentFailed ? '❌' : '✅'}
+      </div>
       <h2 className="confirmation-title">
-        {isPaymentCompleted ? 'Zaplaceno!' : UI_MESSAGES.PAYMENT_SUCCESS}
+        {isPaymentCompleted ? 'Zaplaceno!' : 
+         isPaymentTimeout ? 'Platba vypršela' : 
+         isPaymentFailed ? 'Platba se nezdařila' : 
+         UI_MESSAGES.PAYMENT_SUCCESS}
       </h2>
       
       <div className="payment-details">

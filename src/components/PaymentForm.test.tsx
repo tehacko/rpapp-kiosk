@@ -105,7 +105,7 @@ describe('PaymentForm', () => {
 
     expect(screen.getByText('Vyberte způsob platby:')).toBeInTheDocument();
     expect(screen.getByText('QR kód')).toBeInTheDocument();
-    expect(screen.getByText('Stripe')).toBeInTheDocument();
+    expect(screen.getByText('ThePay')).toBeInTheDocument();
   });
 
   it('shows processing state on step 4', () => {
@@ -165,7 +165,7 @@ describe('PaymentForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith('test@example.com', 'qr');
   });
 
-  it('handles stripe payment method selection', async () => {
+  it('handles thepay payment method selection', async () => {
     const user = userEvent.setup();
     render(
       <PaymentForm
@@ -179,11 +179,11 @@ describe('PaymentForm', () => {
       />
     );
 
-    const stripeButton = screen.getByText('Stripe');
-    await user.click(stripeButton);
+    const thepayButton = screen.getByText('ThePay');
+    await user.click(thepayButton);
 
     expect(mockOnStepChange).toHaveBeenCalledWith(4);
-    expect(mockOnSubmit).toHaveBeenCalledWith('test@example.com', 'stripe');
+    expect(mockOnSubmit).toHaveBeenCalledWith('test@example.com', 'thepay');
   });
 
   it('disables payment buttons when generating QR', () => {
@@ -200,10 +200,10 @@ describe('PaymentForm', () => {
     );
 
     const qrButton = screen.getByText('QR kód');
-    const stripeButton = screen.getByText('Stripe');
+    const thepayButton = screen.getByText('ThePay');
     
     expect(qrButton).toBeDisabled();
-    expect(stripeButton).toBeDisabled();
+    expect(thepayButton).toBeDisabled();
   });
 
   it('shows error overlay when email is invalid', () => {

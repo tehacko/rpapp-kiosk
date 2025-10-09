@@ -943,13 +943,13 @@ html, body {
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 }
 
-.stripe-btn {
+.thepay-btn {
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: white;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
-.stripe-btn:active:not(:disabled) {
+.thepay-btn:active:not(:disabled) {
   transform: scale(0.95);
   background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
 }
@@ -1111,8 +1111,8 @@ html, body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Stripe Payment Component - Optimized for 480x320 */
-.stripe-payment-container {
+/* ThePay Payment Component - Optimized for 480x320 */
+.thepay-payment-container {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   padding: 6px;
@@ -1126,7 +1126,7 @@ html, body {
   overflow: hidden;
 }
 
-.stripe-payment-content {
+.thepay-payment-content {
   display: flex;
   flex-direction: column;
   gap: 4px;
