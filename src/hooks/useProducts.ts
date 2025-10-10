@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import { 
-  Product, 
+  KioskProduct, 
   APIClient, 
   createAPIClient, 
   NetworkError, 
@@ -9,7 +9,8 @@ import {
   getKioskIdFromUrl,
   getKioskSecretFromUrl,
   useErrorHandler,
-  API_ENDPOINTS
+  API_ENDPOINTS,
+  ApiResponse
 } from 'pi-kiosk-shared';
 
 interface UseProductsOptions {
@@ -26,9 +27,9 @@ export function useProducts(options: UseProductsOptions = {}) {
   const apiClient = options.apiClient || createAPIClient(undefined, kioskSecret);
 
   // SWR fetcher with proper error handling
-  const fetcher = async (url: string): Promise<Product[]> => {
+  const fetcher = async (url: string): Promise<KioskProduct[]> => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: { products: Product[] } }>(url);
+      const response = await apiClient.get<ApiResponse<{ products: KioskProduct[] }>>(url);
       
       if (response.success && response.data?.products) {
         return response.data.products;

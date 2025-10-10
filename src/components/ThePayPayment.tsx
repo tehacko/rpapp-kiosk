@@ -4,7 +4,11 @@ import {
   CSS_CLASSES,
   formatPrice,
   createAPIClient,
-  API_ENDPOINTS
+  API_ENDPOINTS,
+  ThePayCreateRequest,
+  ThePayCreateResponse,
+  ThePayMethodsResponse,
+  ApiResponse
 } from 'pi-kiosk-shared';
 
 interface ThePayPaymentProps {
@@ -38,7 +42,7 @@ export function ThePayPayment({
   const [error, setError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [isProcessing] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{name: string, enabled: boolean}>>([]);
   const apiClient = createAPIClient();
 
   useEffect(() => {
@@ -51,15 +55,15 @@ export function ThePayPayment({
       setError(null);
 
       // Get available payment methods
-      const methodsResponse = await apiClient.get(API_ENDPOINTS.PAYMENT_THEPAY_METHODS) as any;
+      const methodsResponse = await apiClient.get<ApiResponse<ThePayMethodsResponse>>(API_ENDPOINTS.PAYMENT_THEPAY_METHODS);
       if (!methodsResponse.success) {
         throw new Error('ThePay not configured');
       }
 
-      setPaymentMethods(methodsResponse.data.methods);
+      setPaymentMethods(methodsResponse.data!.methods);
 
       // Create ThePay payment
-      const paymentResponse = await apiClient.post(API_ENDPOINTS.PAYMENT_THEPAY_CREATE, {
+      const paymentRequest: ThePayCreateRequest = {
         items: cart.items.map(item => ({
           productId: item.product.id,
           quantity: item.quantity,
@@ -68,13 +72,15 @@ export function ThePayPayment({
         totalAmount: cart.totalAmount,
         customerEmail: email,
         kioskId: kioskId
-      }) as any;
+      };
+
+      const paymentResponse = await apiClient.post<ApiResponse<ThePayCreateResponse>>(API_ENDPOINTS.PAYMENT_THEPAY_CREATE, paymentRequest);
 
       if (!paymentResponse.success) {
         throw new Error(paymentResponse.error || 'Failed to create payment');
       }
 
-      setPaymentData(paymentResponse.data);
+      setPaymentData(paymentResponse.data!);
     } catch (error) {
       console.error('ThePay payment initialization error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Payment initialization failed';

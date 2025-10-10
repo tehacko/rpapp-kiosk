@@ -12,7 +12,7 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import { ThePayPayment } from './components/ThePayPayment';
 import { useCart } from './hooks/useCart';
 import { 
-  Product,
+  KioskProduct,
   PaymentData, 
   MultiProductPaymentData,
   Cart as CartType,
@@ -26,7 +26,8 @@ import {
   validateSchema,
   validationSchemas,
   getEnvironmentConfig,
-  getCurrentEnvironment
+  getCurrentEnvironment,
+  TransactionStatus
 } from 'pi-kiosk-shared';
 
 // Error Boundary Component
@@ -132,7 +133,7 @@ function KioskApp() {
   const { isConnected: sseConnected } = useServerSentEvents({
     kioskId: kioskId || 0,
     enabled: kioskId !== null, // Only enable when kioskId is valid
-    onMessage: (message) => {
+    onMessage: (message: any) => {
       // Handle payment completion
       if (message.type === 'product_update' && message.updateType === 'payment_completed') {
         console.log('🎉 Payment completed!', message);
@@ -144,7 +145,7 @@ function KioskApp() {
           customerEmail: email, // Use the email from the current form
           qrCode: qrCodeUrl, // Use the current QR code URL
           items: cart.items || [], // Use the current cart items
-          status: 'completed' // Mark as completed
+          status: TransactionStatus.COMPLETED // Mark as completed
         });
         // Clear QR code and reset payment step
         setQrCodeUrl('');
@@ -164,7 +165,7 @@ function KioskApp() {
           customerEmail: email,
           qrCode: qrCodeUrl,
           items: cart.items || [],
-          status: 'timeout' // Mark as timeout
+          status: TransactionStatus.TIMEOUT // Mark as timeout
         });
         // Clear QR code and reset payment step
         setQrCodeUrl('');
@@ -184,7 +185,7 @@ function KioskApp() {
           customerEmail: email,
           qrCode: qrCodeUrl,
           items: cart.items || [],
-          status: 'failed' // Mark as failed
+          status: TransactionStatus.FAILED // Mark as failed
         });
         // Clear QR code and reset payment step
         setQrCodeUrl('');
@@ -218,7 +219,7 @@ function KioskApp() {
   } = useCart();
 
   // Product click tracking for analytics
-  const handleProductClick = useCallback(async (product: Product) => {
+  const handleProductClick = useCallback(async (product: KioskProduct) => {
     try {
       await trackProductClick(product.id);
     } catch (error) {
@@ -227,7 +228,7 @@ function KioskApp() {
   }, [trackProductClick]);
 
   // Cart handlers
-  const handleAddToCart = useCallback((product: Product) => {
+  const handleAddToCart = useCallback((product: KioskProduct) => {
     console.log('App.tsx handleAddToCart called for:', product.name, 'Cart before:', cart.totalItems);
     addToCart(product);
     console.log('App.tsx after addToCart call');

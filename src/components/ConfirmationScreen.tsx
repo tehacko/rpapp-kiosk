@@ -1,5 +1,5 @@
 // React import not needed with new JSX transform
-import { PaymentData, MultiProductPaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice } from 'pi-kiosk-shared';
+import { PaymentData, MultiProductPaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice, TransactionStatus } from 'pi-kiosk-shared';
 
 interface ConfirmationScreenProps {
   paymentData: PaymentData | MultiProductPaymentData;
@@ -8,9 +8,9 @@ interface ConfirmationScreenProps {
 
 export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScreenProps) {
   // Check if this is a payment completion from FIO bank
-  const isPaymentCompleted = 'status' in paymentData && paymentData.status === 'completed';
-  const isPaymentTimeout = 'status' in paymentData && paymentData.status === 'timeout';
-  const isPaymentFailed = 'status' in paymentData && paymentData.status === 'failed';
+  const isPaymentCompleted = 'status' in paymentData && paymentData.status === TransactionStatus.COMPLETED;
+  const isPaymentTimeout = 'status' in paymentData && paymentData.status === TransactionStatus.TIMEOUT;
+  const isPaymentFailed = 'status' in paymentData && paymentData.status === TransactionStatus.FAILED;
   
   return (
     <div className={`confirmation-screen ${CSS_CLASSES.SCREEN}`}>

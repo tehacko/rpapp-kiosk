@@ -1,18 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PaymentForm } from './PaymentForm';
-import { Cart, Product } from 'pi-kiosk-shared';
+import { Cart, KioskProduct } from 'pi-kiosk-shared';
 
-const mockProduct: Product = {
+const mockProduct: KioskProduct = {
   id: 1,
   name: 'Test Product',
   description: 'A test product for payment',
   price: 150,
   image: '📦',
   imageUrl: 'https://example.com/product.jpg',
-  quantityInStock: 5,
   clickedOn: 0,
-  numberOfPurchases: 0
+  qrCodesGenerated: 0,
+  numberOfPurchases: 0,
+  createdAt: '2023-01-01T00:00:00Z',
+  updatedAt: '2023-01-01T00:00:00Z',
+  quantityInStock: 5,
+  kioskClickedOn: 0,
+  kioskNumberOfPurchases: 0
 };
 
 const mockCart: Cart = {

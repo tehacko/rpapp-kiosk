@@ -1,9 +1,9 @@
 // React is not needed with new JSX transform
-import { Product, UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 'pi-kiosk-shared';
+import { KioskProduct, UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 'pi-kiosk-shared';
 
 interface ProductGridProps {
-  products: Product[];
-  onAddToCart: (product: Product) => void;
+  products: KioskProduct[];
+  onAddToCart: (product: KioskProduct) => void;
   getItemQuantity: (productId: number) => number;
   isLoading: boolean;
   error: Error | null;
@@ -17,7 +17,7 @@ export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading,
     retryAction(onRetry);
   };
 
-  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+  const handleAddToCart = (e: React.MouseEvent, product: KioskProduct) => {
     e.preventDefault();
     e.stopPropagation();
     console.log('Adding product to cart:', product.name, 'Event:', e.type);

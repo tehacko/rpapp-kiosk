@@ -1,11 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProductGrid } from './ProductGrid';
-import { Product } from 'pi-kiosk-shared';
+import { KioskProduct } from 'pi-kiosk-shared';
 
 // Mock useErrorHandler
 jest.mock('pi-kiosk-shared', () => ({
-  Product: {},
+  KioskProduct: {},
   UI_MESSAGES: {
     LOADING_PRODUCTS: 'Načítání produktů...',
     NO_PRODUCTS: 'Žádné produkty nejsou k dispozici',
@@ -24,7 +24,7 @@ jest.mock('pi-kiosk-shared', () => ({
   formatPrice: (price: number) => `${price} Kč`
 }));
 
-const mockProducts: Product[] = [
+const mockProducts: KioskProduct[] = [
   {
     id: 1,
     name: 'Test Product 1',
@@ -32,9 +32,14 @@ const mockProducts: Product[] = [
     price: 100,
     image: '📦',
     imageUrl: undefined,
-    quantityInStock: 5,
     clickedOn: 0,
-    numberOfPurchases: 0
+    qrCodesGenerated: 0,
+    numberOfPurchases: 0,
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z',
+    quantityInStock: 5,
+    kioskClickedOn: 0,
+    kioskNumberOfPurchases: 0
   },
   {
     id: 2,
@@ -43,9 +48,14 @@ const mockProducts: Product[] = [
     price: 200,
     image: '🍕',
     imageUrl: 'https://example.com/image.jpg',
-    quantityInStock: 3,
     clickedOn: 0,
-    numberOfPurchases: 0
+    qrCodesGenerated: 0,
+    numberOfPurchases: 0,
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z',
+    quantityInStock: 3,
+    kioskClickedOn: 0,
+    kioskNumberOfPurchases: 0
   },
   {
     id: 3,
@@ -54,9 +64,14 @@ const mockProducts: Product[] = [
     price: 150,
     image: '🥤',
     imageUrl: undefined,
-    quantityInStock: 2,
     clickedOn: 0,
-    numberOfPurchases: 0
+    qrCodesGenerated: 0,
+    numberOfPurchases: 0,
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z',
+    quantityInStock: 2,
+    kioskClickedOn: 0,
+    kioskNumberOfPurchases: 0
   }
 ];
 
