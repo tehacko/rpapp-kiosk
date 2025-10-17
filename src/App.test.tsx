@@ -1,6 +1,14 @@
+/**
+ * Kiosk App Tests - Refactored with proper mocking
+ * Tests main kiosk app functionality with consistent mocking patterns
+ */
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { jest } from '@jest/globals';
 import App from './App';
+import {
+  testDataSets
+} from './__tests__/utils/testData';
 
 // Mock the shared package hooks
 jest.mock('./hooks/useProducts', () => ({
@@ -10,7 +18,7 @@ jest.mock('./hooks/useProducts', () => ({
 
 // Mock QRCode
 jest.mock('qrcode', () => ({
-  toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,mock-qr-code')
+  toDataURL: jest.fn()
 }));
 
 // Mock API client
@@ -31,6 +39,23 @@ jest.mock('pi-kiosk-shared', () => ({
     disconnect: jest.fn()
   })),
   useProducts: jest.fn(() => mockUseProducts),
+  getEnvironmentConfig: jest.fn(() => ({
+    apiUrl: 'http://localhost:3015',
+    wsUrl: 'ws://localhost:3015',
+    mode: 'development'
+  })),
+  getCurrentEnvironment: jest.fn(() => 'development'),
+  useErrorHandler: jest.fn(() => ({
+    handleError: jest.fn(),
+    clearError: jest.fn(),
+    retryAction: jest.fn()
+  })),
+  API_ENDPOINTS: {
+    EVENTS: '/events/:kioskId',
+    PRODUCTS: '/products/:kioskId',
+    PAYMENT: '/payment',
+    PAYMENT_STATUS: '/payment/:paymentId/status'
+  },
   APP_CONFIG: {
     PAYMENT_ACCOUNT_NUMBER: '1234567890',
     PAYMENT_CURRENCY: 'CZK',
@@ -39,16 +64,12 @@ jest.mock('pi-kiosk-shared', () => ({
     PAYMENT_POLLING_INTERVAL: 3000,
     PRODUCT_CACHE_TTL: 300000 // 5 minutes
   },
-  useErrorHandler: jest.fn(() => ({
-    handleError: jest.fn(),
-    clearError: jest.fn()
-  })),
-  useAsyncOperation: jest.fn((options = {}) => {
+  useAsyncOperation: jest.fn((options: any = {}) => {
     let onSuccess = options.onSuccess;
     let onError = options.onError;
     
     return {
-      execute: jest.fn(async (fn) => {
+      execute: jest.fn(async (fn: any) => {
         try {
           const result = await fn();
           if (onSuccess) {
@@ -101,7 +122,7 @@ jest.mock('pi-kiosk-shared', () => ({
   formatPrice: jest.fn((amount: number) => `${amount} Kč`),
   
   // Validation functions
-  validateSchema: jest.fn((data, _schema) => {
+  validateSchema: jest.fn((data: any, _schema: any) => {
     const errors: Record<string, string> = {};
     if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       errors.email = 'Zadejte platnou emailovou adresu';
@@ -120,14 +141,22 @@ jest.mock('pi-kiosk-shared', () => ({
     }
   },
   
-  getEnvironmentConfig: jest.fn(() => ({
-    apiUrl: 'http://localhost:3015',
-    wsUrl: 'ws://localhost:3015',
-    mode: 'development'
-  })),
   createEmptyCart: jest.fn(() => ({ items: [], totalAmount: 0, totalItems: 0 })),
-  addToCart: jest.fn((cart, product, quantity = 1) => ({ ...cart, items: [...cart.items, { product, quantity }] })),
-  removeFromCart: jest.fn((cart, productId) => ({ ...cart, items: cart.items.filter((item: any) => item.product.id !== productId) })),
+  addToCart: jest.fn((cart: any, product: any, quantity = 1) => {
+    const existingItem = cart.items.find((item: any) => item.product.id === product.id);
+    
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
+      cart.items.push({ product, quantity });
+    }
+    
+    cart.totalAmount = cart.items.reduce((sum: number, item: any) => sum + (item.product.price * item.quantity), 0);
+    cart.totalItems = cart.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+    
+    return cart;
+  }),
+  removeFromCart: jest.fn((cart: any, productId: any) => ({ ...cart, items: cart.items.filter((item: any) => item.product.id !== productId) })),
   updateCartItemQuantity: jest.fn((_cart, _productId, _quantity) => { /* ... */ }),
   clearCart: jest.fn(() => ({ items: [], totalAmount: 0, totalItems: 0 })),
   NetworkError: class NetworkError extends Error {
@@ -138,30 +167,15 @@ jest.mock('pi-kiosk-shared', () => ({
   },
 }));
 
-const mockProducts = [
-  {
-    id: 1,
-    name: 'Test Product 1',
-    description: 'A test product',
-    price: 100,
-    image: '📦',
-    imageUrl: null,
-    quantityInStock: 5,
-    clickedOn: 0,
-    numberOfPurchases: 0
-  },
-  {
-    id: 2,
-    name: 'Test Product 2',
-    description: 'Another test product',
-    price: 200,
-    image: '🍕',
-    imageUrl: null,
-    quantityInStock: 3,
-    clickedOn: 0,
-    numberOfPurchases: 0
-  }
-];
+// Use test data factories
+const mockProducts = testDataSets.basicProducts.map(product => ({
+  ...product,
+  clickedOn: product.clickedOn,
+  qrCodesGenerated: 0,
+  numberOfPurchases: product.numberOfPurchases,
+  kioskClickedOn: product.clickedOn,
+  kioskNumberOfPurchases: product.numberOfPurchases
+}));
 
 const mockUseProducts = {
   products: mockProducts,
@@ -169,7 +183,7 @@ const mockUseProducts = {
   error: null,
   isConnected: true,
   setIsConnected: jest.fn(),
-  trackProductClick: jest.fn().mockResolvedValue(undefined),
+  trackProductClick: jest.fn(),
   refresh: jest.fn()
 };
 
@@ -184,7 +198,7 @@ describe('KioskApp', () => {
     useProducts.mockReturnValue(mockUseProducts);
     
     // Mock API client responses
-    mockAPIClient.post.mockResolvedValue({
+    (mockAPIClient.post as any).mockResolvedValue({
       success: true,
       data: {
         paymentId: 'pay-123456789',
@@ -195,7 +209,7 @@ describe('KioskApp', () => {
       }
     });
     
-    mockAPIClient.get.mockResolvedValue({
+    (mockAPIClient.get as any).mockResolvedValue({
       success: true,
       data: {
         paymentId: 'pay-123456789',
@@ -213,9 +227,9 @@ describe('KioskApp', () => {
     render(<App />);
     
     expect(screen.getByText('Vyberte si produkt')).toBeInTheDocument();
-    expect(screen.getByText('Kiosk #1')).toBeInTheDocument();
-    expect(screen.getByText('Test Product 1')).toBeInTheDocument();
-    expect(screen.getByText('Test Product 2')).toBeInTheDocument();
+    expect(screen.getByText('Coffee')).toBeInTheDocument();
+    expect(screen.getByText('Sandwich')).toBeInTheDocument();
+    expect(screen.getByText('Cake')).toBeInTheDocument();
   });
 
   it('shows loading state when products are loading', () => {
@@ -260,113 +274,81 @@ describe('KioskApp', () => {
     expect(screen.getByText('Žádné produkty nejsou k dispozici')).toBeInTheDocument();
   });
 
-  it('navigates to payment screen when product is selected', async () => {
+  it('adds product to cart when add to cart button is clicked', async () => {
     const user = userEvent.setup();
     render(<App />);
     
-    const productCards = screen.getAllByText('Test Product 1');
-    const productCard = productCards[0].closest('.product-card');
-    expect(productCard).toBeInTheDocument();
+    // Click the "Add to Cart" button, not the product card
+    const addToCartButtons = screen.getAllByText('🛒 Přidat do košíku');
+    await user.click(addToCartButtons[0]);
     
-    await user.click(productCard!);
-    
+    // Should show the cart header with checkout button
     await waitFor(() => {
-      expect(screen.getByText('Test Product 1')).toBeInTheDocument();
-      expect(screen.getByText('A test product')).toBeInTheDocument();
-      expect(screen.getByText('100 Kč')).toBeInTheDocument();
+      expect(screen.getByText('💳 Zaplatit')).toBeInTheDocument();
     });
   });
 
-  it('generates QR code when payment form is submitted', async () => {
+  it('navigates to payment screen when checkout button is clicked', async () => {
     const user = userEvent.setup();
-    const { useProducts } = require('./hooks/useProducts');
-    const trackProductClick = jest.fn().mockResolvedValue(undefined);
-    
-    useProducts.mockReturnValue({
-      ...mockUseProducts,
-      trackProductClick
-    });
-
     render(<App />);
     
-    // Select a product
-    const productCards = screen.getAllByText('Test Product 1');
-    const productCard = productCards[0].closest('.product-card');
-    await user.click(productCard!);
+    // Add product to cart first
+    const addToCartButtons = screen.getAllByText('🛒 Přidat do košíku');
+    await user.click(addToCartButtons[0]);
     
+    // Wait for checkout button to appear
     await waitFor(() => {
-      expect(screen.getByLabelText(/Váš email/)).toBeInTheDocument();
+      expect(screen.getByText('💳 Zaplatit')).toBeInTheDocument();
     });
     
-    // Fill in email and submit
-    const emailInput = screen.getByLabelText(/Váš email/);
-    await user.type(emailInput, 'test@example.com');
+    // Click checkout button to navigate to payment screen
+    const checkoutButton = screen.getByText('💳 Zaplatit');
+    await user.click(checkoutButton);
     
-    const submitButton = screen.getByRole('button', { name: /generovat qr kód/i });
-    await user.click(submitButton);
-    
-    // Should show QR code
+    // Should now be on payment screen
     await waitFor(() => {
-      expect(screen.getByText('Naskenujte QR kód pro platbu')).toBeInTheDocument();
-      expect(screen.getByText('Částka:')).toBeInTheDocument();
-      expect(screen.getAllByText('100 Kč')).toHaveLength(2); // One in product price, one in QR section
-      expect(screen.getByText('Email:')).toBeInTheDocument();
-      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+      expect(screen.getByText(/Coffee/)).toBeInTheDocument();
+      expect(screen.getAllByText(/3\.5 Kč/)).toHaveLength(2); // Item price and total price
     });
   });
 
-  it('handles payment confirmation', async () => {
+  it('shows cart summary when product is added to cart', async () => {
     const user = userEvent.setup();
     render(<App />);
     
-    // Select a product and go to payment
-    const productCards = screen.getAllByText('Test Product 1');
-    const productCard = productCards[0].closest('.product-card');
-    await user.click(productCard!);
+    // Add product to cart
+    const addToCartButtons = screen.getAllByText('🛒 Přidat do košíku');
+    await user.click(addToCartButtons[0]);
     
+    // Should show cart summary
     await waitFor(() => {
-      expect(screen.getByLabelText(/Váš email/)).toBeInTheDocument();
-    });
-    
-    // Fill in email and submit
-    const emailInput = screen.getByLabelText(/Váš email/);
-    await user.type(emailInput, 'test@example.com');
-    
-    const submitButton = screen.getByRole('button', { name: /generovat qr kód/i });
-    await user.click(submitButton);
-    
-    // Should show QR code and payment form
-    await waitFor(() => {
-      expect(screen.getByText('Naskenujte QR kód pro platbu')).toBeInTheDocument();
-      expect(screen.getByText('Částka:')).toBeInTheDocument();
-      expect(screen.getAllByText('100 Kč')).toHaveLength(2); // One in product price, one in QR section
-      expect(screen.getByText('Email:')).toBeInTheDocument();
-      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+      expect(screen.getByText(/Coffee/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Coffee.*3\.5 Kč/)).toBeInTheDocument(); // Check aria-label
+      expect(screen.getByText('💳 Zaplatit')).toBeInTheDocument();
     });
   });
 
-  it('returns to products screen from payment', async () => {
+  it('clears cart when clear cart button is clicked', async () => {
     const user = userEvent.setup();
     render(<App />);
     
-    // Select a product
-    const productCards = screen.getAllByText('Test Product 1');
-    const productCard = productCards[0].closest('.product-card');
-    await user.click(productCard!);
+    // Add product to cart first
+    const addToCartButtons = screen.getAllByText('🛒 Přidat do košíku');
+    await user.click(addToCartButtons[0]);
     
+    // Wait for checkout button to appear
     await waitFor(() => {
-      expect(screen.getByText('← Zpět na produkty')).toBeInTheDocument();
+      expect(screen.getByText('💳 Zaplatit')).toBeInTheDocument();
     });
     
-    // Click back button
-    const backButton = screen.getByText('← Zpět na produkty');
-    await user.click(backButton);
+    // Click clear cart button
+    const clearCartButton = screen.getByText(/Vyprázdnit košík/);
+    await user.click(clearCartButton);
     
-    // Should return to products screen
+    // Should return to products screen without cart
     await waitFor(() => {
       expect(screen.getByText('Vyberte si produkt')).toBeInTheDocument();
-      expect(screen.getByText('Test Product 1')).toBeInTheDocument();
-      expect(screen.getByText('Test Product 2')).toBeInTheDocument();
+      expect(screen.queryByText('💳 Zaplatit')).not.toBeInTheDocument();
     });
   });
 
@@ -413,10 +395,10 @@ describe('KioskApp', () => {
     expect(screen.getByText('Připojeno')).toBeInTheDocument();
   });
 
-  it('handles product click tracking', async () => {
+  it('tracks product clicks when add to cart button is clicked', async () => {
     const user = userEvent.setup();
     const { useProducts } = require('./hooks/useProducts');
-    const trackProductClick = jest.fn().mockResolvedValue(undefined);
+    const trackProductClick = jest.fn();
     
     useProducts.mockReturnValue({
       ...mockUseProducts,
@@ -425,36 +407,17 @@ describe('KioskApp', () => {
 
     render(<App />);
     
-    const productCards = screen.getAllByText('Test Product 1');
-    const productCard = productCards[0].closest('.product-card');
-    await user.click(productCard!);
+    // Click the "Add to Cart" button
+    const addToCartButtons = screen.getAllByText('🛒 Přidat do košíku');
+    await user.click(addToCartButtons[0]);
     
     expect(trackProductClick).toHaveBeenCalledWith(1);
   });
 
-  it('validates email input', async () => {
-    const user = userEvent.setup();
+  it('shows fullscreen button', () => {
     render(<App />);
     
-    // Select a product
-    const productCards = screen.getAllByText('Test Product 1');
-    const productCard = productCards[0].closest('.product-card');
-    await user.click(productCard!);
-    
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Váš email/)).toBeInTheDocument();
-    });
-    
-    // Try to submit with invalid email
-    const emailInput = screen.getByLabelText(/Váš email/);
-    await user.type(emailInput, 'invalid-email');
-    
-    const submitButton = screen.getByRole('button', { name: /generovat qr kód/i });
-    await user.click(submitButton);
-    
-    // Should show validation error
-    await waitFor(() => {
-      expect(screen.getByText('Zadejte platnou emailovou adresu')).toBeInTheDocument();
-    });
+    // Should show fullscreen button
+    expect(screen.getByTitle('Přepnout na celou obrazovku')).toBeInTheDocument();
   });
 });

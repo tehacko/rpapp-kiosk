@@ -16,19 +16,22 @@ export const useCart = (): UseCartReturn => {
   const [cart, setCart] = useState<Cart>(createEmptyCart());
 
   const addItem = useCallback((product: Product, quantity: number = 1) => {
-    console.log('useCart addItem called for:', product.name, 'quantity:', quantity);
-    
     setCart(prevCart => {
-      console.log('useCart setCart callback, prevCart totalItems:', prevCart.totalItems);
       // Create a completely new cart object
       const newCart = {
         items: [...prevCart.items],
         totalItems: prevCart.totalItems,
         totalAmount: prevCart.totalAmount
       };
+      
       addToCart(newCart, product, quantity);
-      console.log('useCart after addToCart, newCart totalItems:', newCart.totalItems);
-      return newCart;
+      
+      // Return a new object to ensure React detects the change
+      return {
+        items: [...newCart.items],
+        totalItems: newCart.totalItems,
+        totalAmount: newCart.totalAmount
+      };
     });
   }, []);
 

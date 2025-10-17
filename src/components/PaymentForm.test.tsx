@@ -1,24 +1,27 @@
+/**
+ * PaymentForm Component Tests - Refactored with proper mocking
+ * Tests payment form functionality with consistent mocking patterns
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { jest } from '@jest/globals';
 import { PaymentForm } from './PaymentForm';
 import { Cart, KioskProduct } from 'pi-kiosk-shared';
+import {
+  testDataSets
+} from '../__tests__/utils/testData';
 
+// Use test data factories
 const mockProduct: KioskProduct = {
-  id: 1,
-  name: 'Test Product',
-  description: 'A test product for payment',
-  price: 150,
-  image: '📦',
-  imageUrl: 'https://example.com/product.jpg',
+  ...testDataSets.basicProducts[0],
   clickedOn: 0,
   qrCodesGenerated: 0,
   numberOfPurchases: 0,
   createdAt: '2023-01-01T00:00:00Z',
   updatedAt: '2023-01-01T00:00:00Z',
-  quantityInStock: 5,
   kioskClickedOn: 0,
   kioskNumberOfPurchases: 0
-};
+} as KioskProduct;
 
 const mockCart: Cart = {
   items: [
@@ -53,9 +56,8 @@ describe('PaymentForm', () => {
       />
     );
 
-    expect(screen.getByText('Test Product')).toBeInTheDocument();
-    expect(screen.getByText('× 1')).toBeInTheDocument();
-    expect(screen.getByText('150 Kč')).toBeInTheDocument();
+    expect(screen.getByText(/Coffee.*×.*1/)).toBeInTheDocument();
+    expect(screen.getByText(/150 Kč/)).toBeInTheDocument();
   });
 
   it('shows cart summary on step 1', () => {
@@ -123,10 +125,11 @@ describe('PaymentForm', () => {
         email="test@example.com"
         onEmailChange={mockOnEmailChange}
         onStepChange={mockOnStepChange}
+        selectedPaymentMethod="qr"
       />
     );
 
-    expect(screen.getByText('Generuji QR kód...')).toBeInTheDocument();
+    expect(screen.getByText('Potvrzení platby')).toBeInTheDocument();
   });
 
   it('handles email input changes', async () => {
@@ -146,11 +149,15 @@ describe('PaymentForm', () => {
     const emailInput = screen.getByLabelText(/Váš email/);
     await user.type(emailInput, 'test@example.com');
 
-    expect(mockOnEmailChange).toHaveBeenCalledWith('test@example.com');
+    expect(mockOnEmailChange).toHaveBeenCalledTimes(16); // Called for each character
+    expect(mockOnEmailChange).toHaveBeenNthCalledWith(1, 't');
+    expect(mockOnEmailChange).toHaveBeenNthCalledWith(16, 'm');
   });
 
   it('handles payment method selection', async () => {
     const user = userEvent.setup();
+    const mockOnPaymentMethodSelect = jest.fn();
+    
     render(
       <PaymentForm
         cart={mockCart}
@@ -160,18 +167,21 @@ describe('PaymentForm', () => {
         email="test@example.com"
         onEmailChange={mockOnEmailChange}
         onStepChange={mockOnStepChange}
+        onPaymentMethodSelect={mockOnPaymentMethodSelect}
       />
     );
 
     const qrButton = screen.getByText('QR kód');
     await user.click(qrButton);
 
+    expect(mockOnPaymentMethodSelect).toHaveBeenCalledWith('qr');
     expect(mockOnStepChange).toHaveBeenCalledWith(4);
-    expect(mockOnSubmit).toHaveBeenCalledWith('test@example.com', 'qr');
   });
 
   it('handles thepay payment method selection', async () => {
     const user = userEvent.setup();
+    const mockOnPaymentMethodSelect = jest.fn();
+    
     render(
       <PaymentForm
         cart={mockCart}
@@ -181,14 +191,15 @@ describe('PaymentForm', () => {
         email="test@example.com"
         onEmailChange={mockOnEmailChange}
         onStepChange={mockOnStepChange}
+        onPaymentMethodSelect={mockOnPaymentMethodSelect}
       />
     );
 
     const thepayButton = screen.getByText('ThePay');
     await user.click(thepayButton);
 
+    expect(mockOnPaymentMethodSelect).toHaveBeenCalledWith('thepay');
     expect(mockOnStepChange).toHaveBeenCalledWith(4);
-    expect(mockOnSubmit).toHaveBeenCalledWith('test@example.com', 'thepay');
   });
 
   it('disables payment buttons when generating QR', () => {

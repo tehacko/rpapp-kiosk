@@ -1,6 +1,14 @@
+/**
+ * useProducts Hook Tests - Refactored with proper mocking
+ * Tests products hook functionality with consistent mocking patterns
+ */
 import { renderHook, act } from '@testing-library/react';
+import { jest } from '@jest/globals';
 import { useProducts } from './useProducts';
 import { createAPIClient } from 'pi-kiosk-shared';
+import {
+  testDataSets
+} from '../__tests__/utils/testData';
 
 // Mock the shared package
 jest.mock('pi-kiosk-shared', () => ({
@@ -40,30 +48,15 @@ jest.mock('swr', () => {
   };
 });
 
-const mockProducts = [
-  {
-    id: 1,
-    name: 'Test Product 1',
-    description: 'A test product',
-    price: 100,
-    image: '📦',
-    imageUrl: null,
-    quantityInStock: 5,
-    clickedOn: 0,
-    numberOfPurchases: 0
-  },
-  {
-    id: 2,
-    name: 'Test Product 2',
-    description: 'Another test product',
-    price: 200,
-    image: '🍕',
-    imageUrl: null,
-    quantityInStock: 3,
-    clickedOn: 0,
-    numberOfPurchases: 0
-  }
-];
+// Use test data factories
+const mockProducts = testDataSets.basicProducts.map(product => ({
+  ...product,
+  clickedOn: product.clickedOn,
+  qrCodesGenerated: 0,
+  numberOfPurchases: product.numberOfPurchases,
+  kioskClickedOn: product.clickedOn,
+  kioskNumberOfPurchases: product.numberOfPurchases
+}));
 
 const mockApiClient = {
   get: jest.fn(),

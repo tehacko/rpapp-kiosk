@@ -1,3 +1,7 @@
+/**
+ * ConnectionStatus Component Tests - Refactored with proper mocking
+ * Tests connection status functionality with consistent mocking patterns
+ */
 import { render, screen } from '@testing-library/react';
 import { ConnectionStatus } from './ConnectionStatus';
 

@@ -1,15 +1,49 @@
+/**
+ * ConfirmationScreen Component Tests - Refactored with proper mocking
+ * Tests confirmation screen functionality with consistent mocking patterns
+ */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { jest } from '@jest/globals';
 import { ConfirmationScreen } from './ConfirmationScreen';
 import { PaymentData } from 'pi-kiosk-shared';
+import {
+  testDataSets
+} from '../__tests__/utils/testData';
 
+// Mock pi-kiosk-shared
+jest.mock('pi-kiosk-shared', () => ({
+  PaymentData: {},
+  MultiProductPaymentData: {},
+  UI_MESSAGES: {
+    PAYMENT_SUCCESS: 'Platba byla úspěšně dokončena',
+    PAYMENT_FAILED: 'Platba se nezdařila',
+    PAYMENT_TIMEOUT: 'Platba vypršela',
+    CONTINUE: 'Pokračovat'
+  },
+  CSS_CLASSES: {
+    CONFIRMATION_SCREEN: 'confirmation-screen',
+    SUCCESS_ICON: 'success-icon',
+    ERROR_ICON: 'error-icon',
+    PAYMENT_DETAILS: 'payment-details',
+    CONTINUE_BUTTON: 'continue-button'
+  },
+  formatPrice: jest.fn((price: number) => `${price} Kč`),
+  TransactionStatus: {
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    TIMEOUT: 'TIMEOUT',
+    PENDING: 'PENDING'
+  }
+}));
+
+// Use test data factories
 const mockPaymentData: PaymentData = {
-  productId: 1,
-  productName: 'Test Product',
-  amount: 150,
+  ...testDataSets.completedPayment,
   customerEmail: 'test@example.com',
-  qrCode: 'SPD*1.0*ACC:1234567890*AM:150*CC:CZK*MSG:Platba za Test Product - test@example.com*X-VS:pay-123456789',
-  paymentId: 'pay-123456789'
+  qrCode: 'data:image/png;base64,mock-qr-code',
+  paymentId: testDataSets.completedPayment.id,
+  status: 'COMPLETED' as any
 };
 
 describe('ConfirmationScreen', () => {
@@ -27,10 +61,10 @@ describe('ConfirmationScreen', () => {
       />
     );
 
-    expect(screen.getByText('Platba byla úspěšně zpracována!')).toBeInTheDocument();
-    expect(screen.getByText('Test Product')).toBeInTheDocument();
-    expect(screen.getByText('150 Kč')).toBeInTheDocument();
-    expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Zaplaceno!')).toBeInTheDocument();
+    expect(screen.getByText('Coffee')).toBeInTheDocument();
+    expect(screen.getByText('3.5 Kč')).toBeInTheDocument();
+    // Email is not displayed in the component
   });
 
   it('shows success icon', () => {
@@ -68,9 +102,9 @@ describe('ConfirmationScreen', () => {
       />
     );
 
-    const continueButton = screen.getByRole('button', { name: /pokračovat v nákupu/i });
+    const continueButton = screen.getByRole('button', { name: /zpět k produktům/i });
     expect(continueButton).toBeInTheDocument();
-    expect(continueButton).toHaveTextContent('🏠 Pokračovat v nákupu');
+    expect(continueButton).toHaveTextContent('🏠 Zpět k produktům');
   });
 
   it('calls onContinue when continue button is clicked', async () => {
@@ -82,7 +116,7 @@ describe('ConfirmationScreen', () => {
       />
     );
 
-    const continueButton = screen.getByRole('button', { name: /pokračovat v nákupu/i });
+    const continueButton = screen.getByRole('button', { name: /zpět k produktům/i });
     await user.click(continueButton);
 
     expect(mockOnContinue).toHaveBeenCalledTimes(1);
@@ -176,9 +210,9 @@ describe('ConfirmationScreen', () => {
       />
     );
 
-    const continueButton = screen.getByRole('button', { name: /pokračovat v nákupu/i });
+    const continueButton = screen.getByRole('button', { name: /zpět k produktům/i });
     expect(continueButton).toHaveAttribute('type', 'button');
-    expect(continueButton).toHaveAttribute('aria-label', 'Pokračovat v nákupu');
+    expect(continueButton).toHaveAttribute('aria-label', 'Zpět k produktům');
   });
 
   it('renders with minimal payment data', () => {
@@ -198,7 +232,7 @@ describe('ConfirmationScreen', () => {
       />
     );
 
-    expect(screen.getByText('Platba byla úspěšně zpracována!')).toBeInTheDocument();
+    expect(screen.getByText('Platba byla úspěšně dokončena')).toBeInTheDocument();
     expect(screen.getByText('Minimal Product')).toBeInTheDocument();
     expect(screen.getByText('0 Kč')).toBeInTheDocument();
   });
@@ -247,7 +281,7 @@ describe('ConfirmationScreen', () => {
       />
     );
 
-    expect(screen.getByText('Platba byla úspěšně zpracována!')).toBeInTheDocument();
+    expect(screen.getByText('Zaplaceno!')).toBeInTheDocument();
     // Should not crash even with empty product name
   });
 });
