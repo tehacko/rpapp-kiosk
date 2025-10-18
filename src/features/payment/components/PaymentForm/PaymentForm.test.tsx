@@ -9,7 +9,7 @@ import { PaymentForm } from './PaymentForm';
 import { Cart, KioskProduct } from 'pi-kiosk-shared';
 import {
   testDataSets
-} from '../__tests__/utils/testData';
+} from '../../../../__tests__/utils/testData';
 
 // Use test data factories
 const mockProduct: KioskProduct = {
@@ -35,7 +35,8 @@ const mockCart: Cart = {
 };
 
 describe('PaymentForm', () => {
-  const mockOnSubmit = jest.fn();
+  const mockOnSubmit = jest.fn() as jest.MockedFunction<(cart: Cart, email: string, paymentMethod: 'qr' | 'thepay') => Promise<void>>;
+  mockOnSubmit.mockResolvedValue(undefined);
   const mockOnEmailChange = jest.fn();
   const mockOnStepChange = jest.fn();
 

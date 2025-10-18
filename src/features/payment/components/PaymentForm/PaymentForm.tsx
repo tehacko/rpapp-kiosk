@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { 
-  Cart,
-  UI_MESSAGES,
-  CSS_CLASSES,
+  Cart, 
+  Cart as CartType,
+  UI_MESSAGES, 
+  CSS_CLASSES, 
   formatPrice
 } from 'pi-kiosk-shared';
 
 interface PaymentFormProps {
   cart: Cart;
-  onSubmit: (email: string, paymentMethod: 'qr' | 'thepay') => void;
+  onSubmit: (cart: CartType, email: string, paymentMethod: 'qr' | 'thepay') => Promise<void>;
   isGeneratingQR: boolean;
   currentStep: number;
   email: string;
@@ -52,7 +53,7 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
     console.log('PaymentForm: handleConfirmPayment called', { selectedPaymentMethod, email: email.trim() });
     if (selectedPaymentMethod) {
       console.log('PaymentForm: calling onSubmit with', { email: email.trim(), selectedPaymentMethod });
-      onSubmit(email.trim(), selectedPaymentMethod);
+      onSubmit(cart, email.trim(), selectedPaymentMethod);
     } else {
       console.log('PaymentForm: no selectedPaymentMethod, not calling onSubmit');
     }

@@ -8,7 +8,7 @@ import { useProducts } from './useProducts';
 import { createAPIClient } from 'pi-kiosk-shared';
 import {
   testDataSets
-} from '../__tests__/utils/testData';
+} from '../../../__tests__/utils/testData';
 
 // Mock the shared package
 jest.mock('pi-kiosk-shared', () => ({
@@ -49,7 +49,7 @@ jest.mock('swr', () => {
 });
 
 // Use test data factories
-const mockProducts = testDataSets.basicProducts.map(product => ({
+const mockProducts = testDataSets.basicProducts.map((product: any) => ({
   ...product,
   clickedOn: product.clickedOn,
   qrCodesGenerated: 0,

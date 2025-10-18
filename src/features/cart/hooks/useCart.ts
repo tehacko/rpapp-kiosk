@@ -10,6 +10,7 @@ export interface UseCartReturn {
   clearAll: () => void;
   getItemQuantity: (productId: number) => number;
   isEmpty: boolean;
+  totalItems: number;
 }
 
 export const useCart = (): UseCartReturn => {
@@ -24,30 +25,27 @@ export const useCart = (): UseCartReturn => {
         totalAmount: prevCart.totalAmount
       };
       
-      addToCart(newCart, product, quantity);
+      // Use the returned cart from addToCart
+      const updatedCart = addToCart(newCart, product, quantity);
       
-      // Return a new object to ensure React detects the change
-      return {
-        items: [...newCart.items],
-        totalItems: newCart.totalItems,
-        totalAmount: newCart.totalAmount
-      };
+      // Return the updated cart
+      return updatedCart;
     });
   }, []);
 
   const removeItem = useCallback((productId: number) => {
     setCart(prevCart => {
       const newCart = { ...prevCart };
-      removeFromCart(newCart, productId);
-      return newCart;
+      const updatedCart = removeFromCart(newCart, productId);
+      return updatedCart;
     });
   }, []);
 
   const updateQuantity = useCallback((productId: number, quantity: number) => {
     setCart(prevCart => {
       const newCart = { ...prevCart };
-      updateCartItemQuantity(newCart, productId, quantity);
-      return newCart;
+      const updatedCart = updateCartItemQuantity(newCart, productId, quantity);
+      return updatedCart;
     });
   }, []);
 
@@ -61,6 +59,7 @@ export const useCart = (): UseCartReturn => {
   }, [cart.items]);
 
   const isEmpty = cart.items.length === 0;
+  const totalItems = cart.totalItems;
 
   return {
     cart,
@@ -69,6 +68,7 @@ export const useCart = (): UseCartReturn => {
     updateQuantity,
     clearAll,
     getItemQuantity,
-    isEmpty
+    isEmpty,
+    totalItems
   };
 };

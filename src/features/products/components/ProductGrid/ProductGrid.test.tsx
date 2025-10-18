@@ -9,7 +9,7 @@ import { ProductGrid } from './ProductGrid';
 import { KioskProduct } from 'pi-kiosk-shared';
 import {
   testDataSets
-} from '../__tests__/utils/testData';
+} from '../../../../__tests__/utils/testData';
 
 // Mock useErrorHandler and shared utilities
 jest.mock('pi-kiosk-shared', () => ({
@@ -33,7 +33,7 @@ jest.mock('pi-kiosk-shared', () => ({
 }));
 
 // Use test data factories
-const mockProducts: KioskProduct[] = testDataSets.basicProducts.map(product => ({
+const mockProducts: KioskProduct[] = testDataSets.basicProducts.map((product: any) => ({
   ...product,
   clickedOn: product.clickedOn,
   qrCodesGenerated: 0,

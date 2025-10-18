@@ -1,0 +1,1 @@
+export { ThePayPayment } from './ThePayPayment';

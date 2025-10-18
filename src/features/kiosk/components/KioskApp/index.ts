@@ -1,0 +1,1 @@
+export { KioskApp } from './KioskApp';

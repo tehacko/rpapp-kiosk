@@ -6,10 +6,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { jest } from '@jest/globals';
 import { ConfirmationScreen } from './ConfirmationScreen';
-import { PaymentData } from 'pi-kiosk-shared';
+import { MultiProductPaymentData } from 'pi-kiosk-shared';
 import {
   testDataSets
-} from '../__tests__/utils/testData';
+} from '../../../../__tests__/utils/testData';
 
 // Mock pi-kiosk-shared
 jest.mock('pi-kiosk-shared', () => ({
@@ -38,11 +38,12 @@ jest.mock('pi-kiosk-shared', () => ({
 }));
 
 // Use test data factories
-const mockPaymentData: PaymentData = {
-  ...testDataSets.completedPayment,
+const mockPaymentData: MultiProductPaymentData = {
+  items: [],
+  totalAmount: 100,
   customerEmail: 'test@example.com',
   qrCode: 'data:image/png;base64,mock-qr-code',
-  paymentId: testDataSets.completedPayment.id,
+  paymentId: testDataSets.completedPayment.paymentId,
   status: 'COMPLETED' as any
 };
 
@@ -216,10 +217,9 @@ describe('ConfirmationScreen', () => {
   });
 
   it('renders with minimal payment data', () => {
-    const minimalPaymentData: PaymentData = {
-      productId: 1,
-      productName: 'Minimal Product',
-      amount: 0,
+    const minimalPaymentData: MultiProductPaymentData = {
+      items: [],
+      totalAmount: 0,
       customerEmail: '',
       qrCode: '',
       paymentId: 'pay-minimal'
