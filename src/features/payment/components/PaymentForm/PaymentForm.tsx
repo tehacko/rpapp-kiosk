@@ -51,9 +51,28 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
 
   const handleConfirmPayment = () => {
     console.log('PaymentForm: handleConfirmPayment called', { selectedPaymentMethod, email: email.trim() });
+    
+    // Validate email before submitting
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setErrors({ email: 'Email je povinný' });
+      setShowErrorOverlay(true);
+      console.log('PaymentForm: email is empty, showing error');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrors({ email: 'Neplatný formát emailu' });
+      setShowErrorOverlay(true);
+      console.log('PaymentForm: invalid email format, showing error');
+      return;
+    }
+    
     if (selectedPaymentMethod) {
-      console.log('PaymentForm: calling onSubmit with', { email: email.trim(), selectedPaymentMethod });
-      onSubmit(cart, email.trim(), selectedPaymentMethod);
+      console.log('PaymentForm: calling onSubmit with', { email: trimmedEmail, selectedPaymentMethod });
+      onSubmit(cart, trimmedEmail, selectedPaymentMethod);
     } else {
       console.log('PaymentForm: no selectedPaymentMethod, not calling onSubmit');
     }
@@ -66,9 +85,9 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
         <div className="error-overlay">
           <div className="error-overlay-content">
             <div className="error-icon">⚠️</div>
-            <h3 className="error-title">Neplatný email</h3>
+            <h3 className="error-title">Chyba při zadávání emailu</h3>
             <p className="error-message-text">
-              Zadejte prosím platnou emailovou adresu pro pokračování v platbě.
+              {errors.email || 'Zadejte prosím platnou emailovou adresu pro pokračování v platbě.'}
             </p>
             <button 
               onClick={handleCloseError}
