@@ -42,7 +42,6 @@ export function ThePayPayment({
   const [error, setError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>('pending');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<Array<{name: string, enabled: boolean}>>([]);
   const apiClient = createAPIClient();
 
@@ -67,7 +66,6 @@ export function ThePayPayment({
 
           if (newStatus === 'completed') {
             clearInterval(statusInterval);
-            setIsProcessing(true);
             // Auto-trigger success after a short delay
             setTimeout(() => {
               if (paymentData) {
@@ -139,7 +137,6 @@ export function ThePayPayment({
   const handlePaymentMethodClick = async (method: any) => {
     try {
       setPaymentStatus('processing');
-      setIsProcessing(true);
 
       console.log(`💳 Opening ThePay payment page with ${method.name}...`);
       
@@ -172,19 +169,7 @@ export function ThePayPayment({
     } catch (error) {
       console.error('❌ Payment error:', error);
       setPaymentStatus('failed');
-      setIsProcessing(false);
       onPaymentError(error instanceof Error ? error.message : 'Payment failed');
-    }
-  };
-
-  const handlePaymentSuccess = () => {
-    if (paymentData) {
-      onPaymentSuccess({
-        paymentId: paymentData.paymentId,
-        amount: paymentData.amount,
-        customerEmail: email,
-        paymentUrl: paymentData.paymentUrl
-      });
     }
   };
 
