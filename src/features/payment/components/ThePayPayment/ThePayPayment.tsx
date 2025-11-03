@@ -6,7 +6,7 @@ import {
   CSS_CLASSES,
   createAPIClient,
   API_ENDPOINTS,
-  ThePayCreateRequest,
+  ThePayCreateRequest as BaseThePayCreateRequest,
   ThePayCreateResponse,
   ApiResponse
 } from 'pi-kiosk-shared';
@@ -18,6 +18,11 @@ import type { SSEMessage } from '../../../realtime/hooks/useServerSentEvents';
 const THEPAY_MODE: ThePayMode = 'qr'; // 'redirect' | 'qr'
 
 type ThePayMode = 'redirect' | 'qr';
+
+// Extend ThePayCreateRequest to include paymentMode
+interface ThePayCreateRequest extends BaseThePayCreateRequest {
+  paymentMode?: ThePayMode; // Optional for backward compatibility
+}
 
 type PaymentStatus = 'creating' | 'redirecting' | 'displaying_qr' | 'waiting_for_payment' | 'error';
 
@@ -123,7 +128,8 @@ export function ThePayPayment({
         })),
         totalAmount: cart.totalAmount,
         customerEmail: email,
-        kioskId: kioskId
+        kioskId: kioskId,
+        paymentMode: THEPAY_MODE // Send mode to backend for correct return URL
       };
 
       const response = await apiClient.post<ApiResponse<ThePayCreateResponse>>(
