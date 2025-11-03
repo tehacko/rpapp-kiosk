@@ -255,9 +255,16 @@ export function KioskApp() {
   }, [handleError]);
 
   const handleThePayPaymentCancel = useCallback(() => {
-    setPaymentStep(3); // Go back to payment method selection
+    console.log('🚫 ThePay payment cancelled, resetting to default screen');
+    // Reset payment state completely
+    clearQR();
+    setPaymentStep(1); // Reset to first payment step
     setSelectedPaymentMethod(undefined);
-  }, [setPaymentStep, setSelectedPaymentMethod]);
+    resetPaymentState();
+    // Navigate back to products screen
+    clearCart();
+    goToProducts();
+  }, [clearQR, setPaymentStep, setSelectedPaymentMethod, resetPaymentState, clearCart, goToProducts]);
 
   // Show error screen if kiosk ID is invalid
   if (!isValid || kioskError) {

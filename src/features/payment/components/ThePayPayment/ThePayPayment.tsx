@@ -118,17 +118,28 @@ export function ThePayPayment({
       navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}`);
     } else if (isPaymentCancelled && matchesPaymentId) {
       console.log('🚫 Payment cancelled via SSE, resetting payment screen');
+      console.log('🚫 Cancellation details:', { 
+        paymentId: message.data?.paymentId, 
+        transactionId: message.data?.transactionId,
+        kioskId: message.data?.kioskId 
+      });
       
       // Stop polling if it's running
       if (pollingIntervalRef.current) {
-        console.log('🛑 Stopping polling (cancellation detected)');
+        console.log('🛑 Stopping polling (cancellation detected via SSE)');
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
       
       // Reset navigation flag and call onCancel to reset screen
       isNavigatingRef.current = false;
+      console.log('🚫 Calling onCancel to reset payment screen');
       onCancel();
+    } else if (isPaymentCancelled && !matchesPaymentId) {
+      console.log('⏭️ SSE cancellation message for different payment:', {
+        messagePaymentId: message.data?.paymentId,
+        currentPaymentId: paymentIdRef.current
+      });
     } else {
       console.log('⏭️ SSE message not matching our payment:', { 
         isPaymentCompleted, 
@@ -215,8 +226,16 @@ export function ThePayPayment({
           // Reset navigation flag and call onCancel to reset screen
           isNavigatingRef.current = false;
           onCancel();
+        } else if (status === 'pending' || status === 'processing') {
+          // Payment still pending - but if we've been polling for a while, 
+          // it might be abandoned (user clicked "návrat na web")
+          // The backend should return 'cancelled' if transaction is CANCELLED in DB
+          console.log(`⏳ Payment still pending (attempt ${attempts}/${maxAttempts}), status: ${status}`);
+          
+          // Note: If ThePaySuccessPage detected abandonment and marked transaction as CANCELLED,
+          // the next poll should return 'cancelled' status from the backend
         } else {
-          console.log('⏳ Payment still pending, status:', status);
+          console.log(`⚠️ Unexpected payment status via polling: ${status}`);
         }
       } catch (error) {
         console.error('❌ Polling error:', error);
