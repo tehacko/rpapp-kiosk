@@ -10,7 +10,8 @@ import {
   ThePayCreateResponse,
   ApiResponse
 } from 'pi-kiosk-shared';
-import { useServerSentEvents, SSEMessage } from '../../../realtime';
+import { useServerSentEvents } from '../../../realtime';
+import type { SSEMessage } from '../../../realtime/hooks/useServerSentEvents';
 
 // Configuration: Switch between 'redirect' and 'qr' modes
 // TODO: Move to environment config or database setting
@@ -206,7 +207,7 @@ export function ThePayPayment({
 
 // Render function for redirect mode
 function renderRedirectMode(
-  status: PaymentStatus,
+  _status: PaymentStatus, // Unused but kept for consistency
   error: string | null,
   onRetry: () => void,
   onCancel: () => void
@@ -307,7 +308,7 @@ function renderQRMode(
           
           <div className={`payment-status ${CSS_CLASSES.LOADING}`}>
             <p className="status-text">Čekám na platbu</p>
-            <p className="amount-text">{paymentData?.totalAmount} Kč</p>
+            <p className="amount-text">{paymentData?.amount} Kč</p>
             <div className="loading-spinner" aria-hidden="true"></div>
           </div>
           
