@@ -7,10 +7,16 @@ export function ThePaySuccessPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'checking' | 'success' | 'failed'>('checking');
   
-  const paymentId = searchParams.get('paymentId');
+  // ThePay uses 'payment_uid' in return URL, but our system uses 'paymentId'
+  const paymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
   const kioskId = searchParams.get('kioskId');
 
-  console.log('🎯 ThePaySuccessPage loaded:', { paymentId, kioskId, status });
+  console.log('🎯 ThePaySuccessPage loaded:', { 
+    paymentId, 
+    kioskId, 
+    status,
+    allParams: Object.fromEntries(searchParams.entries())
+  });
 
   useEffect(() => {
     if (!paymentId || !kioskId) {
