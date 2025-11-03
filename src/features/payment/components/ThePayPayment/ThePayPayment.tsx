@@ -186,8 +186,10 @@ export function ThePayPayment({
         // Handle both response formats defensively
         const status = response.data?.status || (response as any).status;
         const isCompleted = response.success && status === 'completed';
+        const isCancelled = response.success && status === 'cancelled';
+        const isFailed = response.success && (status === 'failed' || status === 'refunded');
         
-        console.log('📊 Parsed status:', status, 'isCompleted:', isCompleted);
+        console.log('📊 Parsed status:', status, 'isCompleted:', isCompleted, 'isCancelled:', isCancelled, 'isFailed:', isFailed);
         
         if (isCompleted) {
           console.log('✅ Payment completed via POLLING, navigating to success page');
@@ -201,6 +203,18 @@ export function ThePayPayment({
           // Mark as navigating and navigate
           isNavigatingRef.current = true;
           navigate(`/payment/thepay-success?paymentId=${paymentIdRef.current}&kioskId=${kioskId}`);
+        } else if (isCancelled || isFailed) {
+          console.log(`🚫 Payment ${isCancelled ? 'cancelled' : 'failed'} via POLLING, resetting payment screen`);
+          
+          // Clear the polling interval
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          
+          // Reset navigation flag and call onCancel to reset screen
+          isNavigatingRef.current = false;
+          onCancel();
         } else {
           console.log('⏳ Payment still pending, status:', status);
         }
@@ -218,7 +232,7 @@ export function ThePayPayment({
         }
       }
     }, 3000); // Poll every 3 seconds
-  }, [apiClient, navigate, kioskId]);
+  }, [apiClient, navigate, kioskId, onCancel]);
 
   // Payment creation (shared by both modes)
   useEffect(() => {
