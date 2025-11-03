@@ -154,7 +154,7 @@ export function ThePayPayment({
           status: string;
           thepayState?: string;
         }>>(
-          `${API_ENDPOINTS.PAYMENT_THEPAY_STATUS}/${paymentIdRef.current}`
+          API_ENDPOINTS.PAYMENT_THEPAY_STATUS.replace(':paymentId', paymentIdRef.current || '')
         );
         
         console.log('📊 Polling response:', response);
