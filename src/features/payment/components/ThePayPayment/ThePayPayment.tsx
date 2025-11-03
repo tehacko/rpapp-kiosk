@@ -64,6 +64,10 @@ export function ThePayPayment({
   const apiClient = createAPIClient();
   const paymentIdRef = useRef<string | null>(null);
   
+  // Hybrid polling + webhook: Refs for preventing race conditions
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isNavigatingRef = useRef<boolean>(false);
+  
   const [state, setState] = useState<ThePayPaymentState>({
     status: 'creating',
     paymentData: null,
@@ -71,9 +75,15 @@ export function ThePayPayment({
     error: null
   });
 
-  // QR mode: Handle SSE payment completion
+  // QR mode: Handle SSE payment completion (PRIMARY method - instant)
   const handleSSEMessage = useCallback((message: SSEMessage) => {
     console.log('📨 SSE message received:', message);
+    
+    // Prevent double navigation
+    if (isNavigatingRef.current) {
+      console.log('⚠️ Already navigating, ignoring SSE message');
+      return;
+    }
     
     // Check if this is our payment completion
     if (
@@ -81,9 +91,17 @@ export function ThePayPayment({
       message.updateType === 'payment_completed' &&
       message.data?.paymentId === paymentIdRef.current
     ) {
-      console.log('🎉 Payment completed via SSE, navigating to success page');
+      console.log('✅ Payment completed via SSE, navigating to success page');
       
-      // Navigate to success page (same as redirect mode!)
+      // Stop polling if it's running
+      if (pollingIntervalRef.current) {
+        console.log('🛑 Stopping polling (SSE fired first)');
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      
+      // Mark as navigating and navigate
+      isNavigatingRef.current = true;
       navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}`);
     }
   }, [navigate, kioskId]);
@@ -94,6 +112,68 @@ export function ThePayPayment({
     enabled: THEPAY_MODE === 'qr',
     onMessage: handleSSEMessage
   });
+
+  // QR mode: Status polling (FALLBACK method - reliable)
+  // This catches payment completion if webhook/SSE doesn't fire (e.g., demo mode)
+  const startStatusPolling = useCallback(() => {
+    let attempts = 0;
+    const maxAttempts = 20; // 20 attempts * 3s = 60 seconds total
+    
+    console.log('🔄 Starting status polling (every 3s, max 20 attempts)');
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      // Don't poll if we're already navigating
+      if (isNavigatingRef.current) {
+        console.log('🛑 Already navigating, stopping polling');
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        return;
+      }
+      
+      attempts++;
+      console.log(`🔄 Polling payment status (attempt ${attempts}/${maxAttempts}) for: ${paymentIdRef.current}`);
+      
+      try {
+        const response = await apiClient.get<ApiResponse<{ 
+          paymentId: string; 
+          status: string;
+          thepayState?: string;
+        }>>(
+          `${API_ENDPOINTS.PAYMENT_THEPAY_STATUS}/${paymentIdRef.current}`
+        );
+        
+        console.log('📊 Polling response:', response);
+        
+        if (response.success && response.data?.status === 'completed') {
+          console.log('✅ Payment completed via POLLING, navigating to success page');
+          
+          // Clear the polling interval
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          
+          // Mark as navigating and navigate
+          isNavigatingRef.current = true;
+          navigate(`/payment/thepay-success?paymentId=${paymentIdRef.current}&kioskId=${kioskId}`);
+        }
+      } catch (error) {
+        console.error('❌ Polling error:', error);
+        // Continue polling on error - might be transient
+      }
+      
+      // Stop polling after max attempts
+      if (attempts >= maxAttempts) {
+        console.log('⏱️ Polling timeout reached (60 seconds)');
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      }
+    }, 3000); // Poll every 3 seconds
+  }, [apiClient, navigate, kioskId]);
 
   // Payment creation (shared by both modes)
   useEffect(() => {
@@ -109,10 +189,32 @@ export function ThePayPayment({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.paymentData]);
 
-  // Cleanup
+  // QR mode: Start polling when QR is displayed
+  useEffect(() => {
+    if (THEPAY_MODE === 'qr' && state.status === 'waiting_for_payment') {
+      console.log('📱 QR code displayed, starting hybrid polling + SSE');
+      startStatusPolling();
+    }
+    
+    // Cleanup: Stop polling on unmount or when leaving this state
+    return () => {
+      if (pollingIntervalRef.current) {
+        console.log('🧹 Cleaning up: Stopping polling');
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [state.status, startStatusPolling]);
+
+  // Cleanup: Reset refs on unmount
   useEffect(() => {
     return () => {
       paymentIdRef.current = null;
+      isNavigatingRef.current = false;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     };
   }, []);
 
