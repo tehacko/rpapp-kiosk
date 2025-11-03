@@ -25,6 +25,7 @@
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^7.9.5",
     "serve": "^14.2.1",
     "swr": "^2.3.6"
   },
