@@ -95,6 +95,16 @@ export function ThePaySuccessPage() {
           return true; // Stop polling
         }
         
+        // NEW: Detect abandonment - if user redirected from ThePay and payment is still pending on first check,
+        // they clicked "návrat na web" and abandoned the payment
+        if (pollCount === 1 && response.success && paymentStatus === 'pending' && paymentId && kioskId) {
+          console.log('🚫 Payment abandoned - user redirected from ThePay but payment still pending, treating as cancelled');
+          // Mark as cancelled and notify backend to broadcast
+          setStatus('cancelled');
+          // This will trigger the cancellation broadcast useEffect
+          return true; // Stop polling
+        }
+        
         // Handle payments that are still in progress - keep polling
         if (response.success && (paymentStatus === 'pending' || paymentStatus === 'processing')) {
           console.log(`⏳ Payment still processing (${paymentStatus}), will check again...`);
