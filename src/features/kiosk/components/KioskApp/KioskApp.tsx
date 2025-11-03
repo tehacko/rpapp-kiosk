@@ -84,6 +84,19 @@ export function KioskApp() {
     kioskId: kioskId || 0,
     enabled: kioskId !== null,
     onMessage: (message: any) => {
+      // Handle payment cancellation (fallback if ThePayPayment component misses it)
+      if (message.type === 'product_update' && message.updateType === 'payment_cancelled') {
+        const paymentId = message.data?.paymentId || '';
+        
+        if (paymentId.startsWith('thepay-')) {
+          console.log('🚫 ThePay payment cancelled, resetting payment screen');
+          clearQR();
+          setPaymentStep(1);
+          setSelectedPaymentMethod(undefined);
+          return;
+        }
+      }
+      
       // Handle payment completion
       if (message.type === 'product_update' && message.updateType === 'payment_completed') {
         // Check if this is a ThePay payment (has thepay- prefix)

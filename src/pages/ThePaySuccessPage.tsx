@@ -32,6 +32,22 @@ export function ThePaySuccessPage() {
     }
   }, [cancelledParam, urlStatus]);
 
+  // Notify backend to broadcast cancellation when detected
+  useEffect(() => {
+    if (status === 'cancelled' && paymentId && kioskId) {
+      console.log('📡 Detected cancellation, notifying backend to broadcast to kiosk');
+      const apiClient = createAPIClient();
+      apiClient.post('/api/payments/thepay-notify-cancellation', {
+        paymentId,
+        kioskId
+      }).then(() => {
+        console.log('✅ Cancellation broadcast notification sent');
+      }).catch(err => {
+        console.error('❌ Failed to notify cancellation:', err);
+      });
+    }
+  }, [status, paymentId, kioskId]);
+
   useEffect(() => {
     if (!paymentId || !kioskId) {
       setStatus('failed');
@@ -75,6 +91,7 @@ export function ThePaySuccessPage() {
         if (response.success && paymentStatus === 'cancelled') {
           console.log('🚫 Payment cancelled');
           setStatus('cancelled');
+          // Note: Cancellation broadcast will be triggered by the useEffect hook above
           return true; // Stop polling
         }
         

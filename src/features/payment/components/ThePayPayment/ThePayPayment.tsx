@@ -89,12 +89,19 @@ export function ThePayPayment({
       return;
     }
     
-    // Check if this is our payment completion
+    // Check if this is our payment completion or cancellation
     const isPaymentCompleted = message.type === 'product_update' && 
       message.updateType === 'payment_completed';
+    const isPaymentCancelled = message.type === 'product_update' && 
+      message.updateType === 'payment_cancelled';
     const matchesPaymentId = message.data?.paymentId === paymentIdRef.current;
     
-    console.log('📨 Payment match check:', { isPaymentCompleted, matchesPaymentId, paymentIdMatch: message.data?.paymentId === paymentIdRef.current });
+    console.log('📨 Payment match check:', { 
+      isPaymentCompleted, 
+      isPaymentCancelled,
+      matchesPaymentId, 
+      paymentIdMatch: message.data?.paymentId === paymentIdRef.current 
+    });
     
     if (isPaymentCompleted && matchesPaymentId) {
       console.log('✅ Payment completed via SSE, navigating to success page');
@@ -109,15 +116,29 @@ export function ThePayPayment({
       // Mark as navigating and navigate
       isNavigatingRef.current = true;
       navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}`);
+    } else if (isPaymentCancelled && matchesPaymentId) {
+      console.log('🚫 Payment cancelled via SSE, resetting payment screen');
+      
+      // Stop polling if it's running
+      if (pollingIntervalRef.current) {
+        console.log('🛑 Stopping polling (cancellation detected)');
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      
+      // Reset navigation flag and call onCancel to reset screen
+      isNavigatingRef.current = false;
+      onCancel();
     } else {
       console.log('⏭️ SSE message not matching our payment:', { 
         isPaymentCompleted, 
+        isPaymentCancelled,
         matchesPaymentId,
         messagePaymentId: message.data?.paymentId,
         currentPaymentId: paymentIdRef.current 
       });
     }
-  }, [navigate, kioskId]);
+  }, [navigate, kioskId, onCancel]);
 
   // QR mode: Connect to SSE only in QR mode
   const { isConnected: sseConnected } = useServerSentEvents({
