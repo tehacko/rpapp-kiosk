@@ -89,10 +89,10 @@ export function KioskApp() {
         const paymentId = message.data?.paymentId || '';
         
         if (paymentId.startsWith('thepay-')) {
-          console.log('🚫 ThePay payment cancelled, resetting payment screen');
-          clearQR();
-          setPaymentStep(1);
-          setSelectedPaymentMethod(undefined);
+          console.log('🚫 ThePay payment cancelled (KioskApp fallback), navigating to cancellation page');
+          // Navigate to success page with cancelled status (shows cancellation message on kiosk)
+          const kioskIdParam = kioskId || 0;
+          window.location.href = `/payment/thepay-success?paymentId=${paymentId}&kioskId=${kioskIdParam}&status=cancelled`;
           return;
         }
       }

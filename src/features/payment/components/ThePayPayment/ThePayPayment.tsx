@@ -117,7 +117,7 @@ export function ThePayPayment({
       isNavigatingRef.current = true;
       navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}`);
     } else if (isPaymentCancelled && matchesPaymentId) {
-      console.log('🚫 Payment cancelled via SSE, resetting payment screen');
+      console.log('🚫 Payment cancelled via SSE, navigating to cancellation page');
       console.log('🚫 Cancellation details:', { 
         paymentId: message.data?.paymentId, 
         transactionId: message.data?.transactionId,
@@ -131,10 +131,9 @@ export function ThePayPayment({
         pollingIntervalRef.current = null;
       }
       
-      // Reset navigation flag and call onCancel to reset screen
-      isNavigatingRef.current = false;
-      console.log('🚫 Calling onCancel to reset payment screen');
-      onCancel();
+      // Navigate to success page with cancelled status (same as completion, but shows cancellation message)
+      isNavigatingRef.current = true;
+      navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}&status=cancelled`);
     } else if (isPaymentCancelled && !matchesPaymentId) {
       console.log('⏭️ SSE cancellation message for different payment:', {
         messagePaymentId: message.data?.paymentId,
@@ -215,7 +214,7 @@ export function ThePayPayment({
           isNavigatingRef.current = true;
           navigate(`/payment/thepay-success?paymentId=${paymentIdRef.current}&kioskId=${kioskId}`);
         } else if (isCancelled || isFailed) {
-          console.log(`🚫 Payment ${isCancelled ? 'cancelled' : 'failed'} via POLLING, resetting payment screen`);
+          console.log(`🚫 Payment ${isCancelled ? 'cancelled' : 'failed'} via POLLING, navigating to ${isCancelled ? 'cancellation' : 'failure'} page`);
           
           // Clear the polling interval
           if (pollingIntervalRef.current) {
@@ -223,9 +222,10 @@ export function ThePayPayment({
             pollingIntervalRef.current = null;
           }
           
-          // Reset navigation flag and call onCancel to reset screen
-          isNavigatingRef.current = false;
-          onCancel();
+          // Navigate to success page with cancelled/failed status (shows appropriate message on kiosk)
+          isNavigatingRef.current = true;
+          const statusParam = isCancelled ? 'cancelled' : 'failed';
+          navigate(`/payment/thepay-success?paymentId=${paymentIdRef.current}&kioskId=${kioskId}&status=${statusParam}`);
         } else if (status === 'pending' || status === 'processing') {
           // Payment still pending - but if we've been polling for a while, 
           // it might be abandoned (user clicked "návrat na web")
