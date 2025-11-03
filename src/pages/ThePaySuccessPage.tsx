@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createAPIClient, API_ENDPOINTS, ApiResponse } from 'pi-kiosk-shared';
+import './ThePaySuccessPage.css';
 
 export function ThePaySuccessPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'checking' | 'success' | 'failed'>('checking');
+  const [status, setStatus] = useState<'checking' | 'success' | 'failed' | 'cancelled'>('checking');
+  const [countdown, setCountdown] = useState<number | null>(null);
   
   // ThePay uses 'payment_uid' in return URL, but our system uses 'paymentId'
   const paymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
   const kioskId = searchParams.get('kioskId');
+  
+  // Check URL params for cancellation indicators (e.g., if ThePay sends cancellation info)
+  const urlStatus = searchParams.get('status');
+  const cancelledParam = searchParams.get('cancelled');
 
   console.log('🎯 ThePaySuccessPage loaded:', { 
     paymentId, 
@@ -18,9 +24,22 @@ export function ThePaySuccessPage() {
     allParams: Object.fromEntries(searchParams.entries())
   });
 
+  // Check URL params for cancellation on initial load
+  useEffect(() => {
+    if (cancelledParam === 'true' || urlStatus === 'cancelled') {
+      console.log('🚫 Payment cancelled via URL parameter');
+      setStatus('cancelled');
+    }
+  }, [cancelledParam, urlStatus]);
+
   useEffect(() => {
     if (!paymentId || !kioskId) {
       setStatus('failed');
+      return;
+    }
+
+    // If already cancelled from URL, skip polling
+    if (status === 'cancelled') {
       return;
     }
 
@@ -52,6 +71,13 @@ export function ThePaySuccessPage() {
           return true; // Stop polling
         }
         
+        // Handle cancelled payment - separate state
+        if (response.success && paymentStatus === 'cancelled') {
+          console.log('🚫 Payment cancelled');
+          setStatus('cancelled');
+          return true; // Stop polling
+        }
+        
         // Handle payments that are still in progress - keep polling
         if (response.success && (paymentStatus === 'pending' || paymentStatus === 'processing')) {
           console.log(`⏳ Payment still processing (${paymentStatus}), will check again...`);
@@ -59,7 +85,7 @@ export function ThePaySuccessPage() {
         }
         
         // Handle terminal failure states - stop polling immediately
-        if (response.success && (paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'refunded')) {
+        if (response.success && (paymentStatus === 'failed' || paymentStatus === 'refunded')) {
           console.log(`❌ Payment terminal state: ${paymentStatus}`);
           setStatus('failed');
           return true; // Stop polling
@@ -103,20 +129,41 @@ export function ThePaySuccessPage() {
       // Cleanup interval on unmount
       return () => clearInterval(pollInterval);
     });
-  }, [paymentId, kioskId]);
+  }, [paymentId, kioskId, status]);
 
-  // Handle redirect after status is set
+  // Handle countdown and redirect after status is set (60 seconds)
   useEffect(() => {
-    if (status === 'success' || status === 'failed') {
-      console.log(`⏱️ Starting 4s redirect timer, status: ${status}`);
-      const timer = setTimeout(() => {
-        console.log('🔄 Redirecting to kiosk home');
-        navigate(`/?kioskId=${kioskId}`);
-      }, 4000);
+    if (status === 'success' || status === 'failed' || status === 'cancelled') {
+      console.log(`⏱️ Starting 60s redirect timer, status: ${status}`);
+      setCountdown(60);
       
-      return () => clearTimeout(timer);
+      const countdownInterval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      const redirectTimer = setTimeout(() => {
+        console.log('🔄 Auto-redirecting to kiosk home');
+        navigate(`/?kioskId=${kioskId}`);
+      }, 60000);
+      
+      return () => {
+        clearTimeout(redirectTimer);
+        clearInterval(countdownInterval);
+      };
+    } else {
+      setCountdown(null);
     }
   }, [status, kioskId, navigate]);
+
+  const handleReturnToKiosk = () => {
+    console.log('👤 User clicked return to kiosk button');
+    navigate(`/?kioskId=${kioskId}`);
+  };
 
   const handleManualCancel = async () => {
     console.log('👤 User manually cancelled payment check');
@@ -137,63 +184,74 @@ export function ThePaySuccessPage() {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      backgroundColor: '#f5f5f5',
-      fontSize: '24px',
-      padding: '20px',
-      textAlign: 'center'
-    }}>
-      {status === 'checking' && (
-        <>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>⏳</div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '10px' }}>
-            Ověřuji platbu...
-          </div>
-          <div style={{ fontSize: '18px', color: '#6b7280', marginBottom: '30px' }}>
-            Čekám na potvrzení platby
-          </div>
-          <button
-            onClick={handleManualCancel}
-            style={{
-              padding: '12px 24px',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              background: '#ef4444',
-              color: 'white',
-              border: 'none',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              touchAction: 'manipulation'
-            }}
-          >
-            ✕ Zrušit a vrátit se
-          </button>
-        </>
-      )}
-      {status === 'success' && (
-        <>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>✅</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '10px' }}>
-            Platba úspěšná!
-          </div>
-          <div>Vrátím vás na kiosk...</div>
-        </>
-      )}
-      {status === 'failed' && (
-        <>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>❌</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '10px' }}>
-            Platba se nezdařila
-          </div>
-          <div>Vrátím vás na kiosk...</div>
-        </>
-      )}
+    <div className="thepay-success-page">
+      <div className="thepay-success-container">
+        {status === 'checking' && (
+          <>
+            <div className="thepay-status-icon">⏳</div>
+            <div className="thepay-status-title">Ověřuji platbu...</div>
+            <div className="thepay-status-message">Čekám na potvrzení platby</div>
+            <button
+              onClick={handleManualCancel}
+              className="thepay-cancel-btn"
+            >
+              ✕ Zrušit a vrátit se
+            </button>
+          </>
+        )}
+        {status === 'success' && (
+          <>
+            <div className="thepay-status-icon thepay-success-icon">✅</div>
+            <div className="thepay-status-title">Platba úspěšná!</div>
+            {countdown !== null && (
+              <div className="thepay-countdown">
+                Automatické přesměrování za {countdown}s
+              </div>
+            )}
+            <button
+              onClick={handleReturnToKiosk}
+              className="thepay-return-btn"
+            >
+              Vrátit se na kiosk
+            </button>
+          </>
+        )}
+        {status === 'failed' && (
+          <>
+            <div className="thepay-status-icon thepay-failed-icon">❌</div>
+            <div className="thepay-status-title">Platba se nezdařila</div>
+            {countdown !== null && (
+              <div className="thepay-countdown">
+                Automatické přesměrování za {countdown}s
+              </div>
+            )}
+            <button
+              onClick={handleReturnToKiosk}
+              className="thepay-return-btn"
+            >
+              Vrátit se na kiosk
+            </button>
+          </>
+        )}
+        {status === 'cancelled' && (
+          <>
+            <div className="thepay-status-icon thepay-cancelled-icon">🚫</div>
+            <div className="thepay-status-title">Platba zrušena</div>
+            <div className="thepay-status-message">Platba byla zrušena nebo nebyla dokončena</div>
+            {countdown !== null && (
+              <div className="thepay-countdown">
+                Automatické přesměrování za {countdown}s
+              </div>
+            )}
+            <button
+              onClick={handleReturnToKiosk}
+              className="thepay-return-btn"
+            >
+              Vrátit se na kiosk
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }

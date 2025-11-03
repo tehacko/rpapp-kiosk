@@ -1,0 +1,186 @@
+/* ThePay Success Page - Optimized for 480x320 Kiosk Display */
+
+.thepay-success-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+  max-width: 480px;
+  max-height: 320px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  font-family: 'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.thepay-success-container {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 8px;
+  margin: 4px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  max-height: 308px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.thepay-status-icon {
+  font-size: 2.5rem;
+  margin-bottom: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.thepay-success-icon {
+  color: #4ade80;
+}
+
+.thepay-failed-icon {
+  color: #f87171;
+}
+
+.thepay-cancelled-icon {
+  color: #fbbf24;
+}
+
+.thepay-status-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.95);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.thepay-status-message {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.thepay-countdown {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.thepay-return-btn {
+  width: 100%;
+  max-width: 240px;
+  padding: 12px 16px;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  touch-action: manipulation;
+  background: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.thepay-return-btn:active:not(:disabled) {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.thepay-return-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.thepay-cancel-btn {
+  width: 100%;
+  max-width: 240px;
+  padding: 10px 16px;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  touch-action: manipulation;
+  background: rgba(239, 68, 68, 0.8);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.thepay-cancel-btn:active {
+  transform: scale(0.95);
+  background: rgba(239, 68, 68, 1);
+}
+
+/* Ensure content fits within 480x320 */
+@media (max-width: 480px) {
+  .thepay-success-page {
+    width: 100vw;
+  }
+  
+  .thepay-success-container {
+    width: calc(100vw - 16px);
+  }
+}
+
+@media (max-height: 320px) {
+  .thepay-success-page {
+    height: 100vh;
+  }
+  
+  .thepay-success-container {
+    height: calc(100vh - 16px);
+    max-height: 304px;
+  }
+  
+  .thepay-status-icon {
+    font-size: 2rem;
+    margin-bottom: 2px;
+  }
+  
+  .thepay-status-title {
+    font-size: 1rem;
+    margin-bottom: 2px;
+  }
+  
+  .thepay-status-message {
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+  }
+  
+  .thepay-countdown {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+  }
+  
+  .thepay-return-btn,
+  .thepay-cancel-btn {
+    padding: 10px 14px;
+    font-size: 1rem;
+    min-height: 40px;
+  }
+}
+
