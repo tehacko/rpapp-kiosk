@@ -77,7 +77,11 @@ export function ThePayPayment({
 
   // QR mode: Handle SSE payment completion (PRIMARY method - instant)
   const handleSSEMessage = useCallback((message: SSEMessage) => {
-    console.log('📨 SSE message received:', message);
+    console.log('📨 ThePayPayment SSE message received:', message);
+    console.log('📨 Current paymentIdRef:', paymentIdRef.current);
+    console.log('📨 Message paymentId:', message.data?.paymentId);
+    console.log('📨 Message type:', message.type, 'updateType:', message.updateType);
+    console.log('📨 IsNavigating:', isNavigatingRef.current);
     
     // Prevent double navigation
     if (isNavigatingRef.current) {
@@ -86,11 +90,13 @@ export function ThePayPayment({
     }
     
     // Check if this is our payment completion
-    if (
-      message.type === 'product_update' && 
-      message.updateType === 'payment_completed' &&
-      message.data?.paymentId === paymentIdRef.current
-    ) {
+    const isPaymentCompleted = message.type === 'product_update' && 
+      message.updateType === 'payment_completed';
+    const matchesPaymentId = message.data?.paymentId === paymentIdRef.current;
+    
+    console.log('📨 Payment match check:', { isPaymentCompleted, matchesPaymentId, paymentIdMatch: message.data?.paymentId === paymentIdRef.current });
+    
+    if (isPaymentCompleted && matchesPaymentId) {
       console.log('✅ Payment completed via SSE, navigating to success page');
       
       // Stop polling if it's running
@@ -103,6 +109,13 @@ export function ThePayPayment({
       // Mark as navigating and navigate
       isNavigatingRef.current = true;
       navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}`);
+    } else {
+      console.log('⏭️ SSE message not matching our payment:', { 
+        isPaymentCompleted, 
+        matchesPaymentId,
+        messagePaymentId: message.data?.paymentId,
+        currentPaymentId: paymentIdRef.current 
+      });
     }
   }, [navigate, kioskId]);
 
@@ -145,8 +158,17 @@ export function ThePayPayment({
         );
         
         console.log('📊 Polling response:', response);
+        console.log('📊 Response.data:', response.data);
+        console.log('📊 Response.data?.status:', response.data?.status);
+        console.log('📊 Response.success:', response.success);
         
-        if (response.success && response.data?.status === 'completed') {
+        // Handle both response formats defensively
+        const status = response.data?.status || (response as any).status;
+        const isCompleted = response.success && status === 'completed';
+        
+        console.log('📊 Parsed status:', status, 'isCompleted:', isCompleted);
+        
+        if (isCompleted) {
           console.log('✅ Payment completed via POLLING, navigating to success page');
           
           // Clear the polling interval
@@ -158,6 +180,8 @@ export function ThePayPayment({
           // Mark as navigating and navigate
           isNavigatingRef.current = true;
           navigate(`/payment/thepay-success?paymentId=${paymentIdRef.current}&kioskId=${kioskId}`);
+        } else {
+          console.log('⏳ Payment still pending, status:', status);
         }
       } catch (error) {
         console.error('❌ Polling error:', error);
@@ -191,9 +215,17 @@ export function ThePayPayment({
 
   // QR mode: Start polling when QR is displayed
   useEffect(() => {
-    if (THEPAY_MODE === 'qr' && state.status === 'waiting_for_payment') {
+    console.log('🔍 Polling useEffect: status=', state.status, 'mode=', THEPAY_MODE, 'hasQR=', !!state.qrCodeUrl);
+    
+    if (THEPAY_MODE === 'qr' && state.status === 'waiting_for_payment' && state.qrCodeUrl) {
       console.log('📱 QR code displayed, starting hybrid polling + SSE');
       startStatusPolling();
+    } else {
+      console.log('⏸️ Polling NOT starting:', { 
+        isQRMode: THEPAY_MODE === 'qr', 
+        status: state.status, 
+        hasQR: !!state.qrCodeUrl 
+      });
     }
     
     // Cleanup: Stop polling on unmount or when leaving this state
@@ -204,7 +236,7 @@ export function ThePayPayment({
         pollingIntervalRef.current = null;
       }
     };
-  }, [state.status, startStatusPolling]);
+  }, [state.status, state.qrCodeUrl, startStatusPolling]);
 
   // Cleanup: Reset refs on unmount
   useEffect(() => {
@@ -282,11 +314,12 @@ export function ThePayPayment({
       setState(prev => ({ 
         ...prev, 
         qrCodeUrl, 
-        status: 'waiting_for_payment'
+        status: 'waiting_for_payment' // Ensure this is set
       }));
       
-      console.log('✅ QR code generated, waiting for payment...');
+      console.log('✅ QR code generated, status:', 'waiting_for_payment');
       console.log('📡 SSE connected:', sseConnected);
+      console.log('🔍 Will start polling when status is waiting_for_payment and QR code exists');
     } catch (error) {
       console.error('QR generation error:', error);
       const errorMessage = 'Failed to generate QR code';

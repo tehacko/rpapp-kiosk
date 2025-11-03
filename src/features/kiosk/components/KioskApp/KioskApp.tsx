@@ -86,6 +86,14 @@ export function KioskApp() {
     onMessage: (message: any) => {
       // Handle payment completion
       if (message.type === 'product_update' && message.updateType === 'payment_completed') {
+        // Check if this is a ThePay payment (has thepay- prefix)
+        const paymentId = message.data?.paymentId || '';
+        
+        if (paymentId.startsWith('thepay-')) {
+          console.log('⏭️ Skipping ThePay payment in KioskApp (handled by ThePayPayment component)');
+          return; // Let ThePayPayment component handle it
+        }
+        
         console.log('🎉 Payment completed!', message);
         goToConfirmation({
           paymentId: message.data?.paymentId || 'unknown',
