@@ -1,5 +1,6 @@
 // React import not needed with new JSX transform
 import { PaymentData, MultiProductPaymentData, UI_MESSAGES, CSS_CLASSES, formatPrice, TransactionStatus } from 'pi-kiosk-shared';
+import styles from './ConfirmationScreen.module.css';
 
 interface ConfirmationScreenProps {
   paymentData: PaymentData | MultiProductPaymentData;
@@ -13,49 +14,49 @@ export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScre
   const isPaymentFailed = 'status' in paymentData && paymentData.status === TransactionStatus.FAILED;
   
   return (
-    <div className={`confirmation-screen ${CSS_CLASSES.SCREEN}`}>
-      <div className="success-icon" role="img" aria-label="Success">
+    <div className={`${styles.confirmationScreen} ${CSS_CLASSES.SCREEN}`}>
+      <div className={styles.successIcon} role="img" aria-label="Success">
         {isPaymentCompleted ? '✅' : isPaymentTimeout ? '⏰' : isPaymentFailed ? '❌' : '✅'}
       </div>
-      <h2 className="confirmation-title">
+      <h2 className={styles.confirmationTitle}>
         {isPaymentCompleted ? 'Zaplaceno!' : 
          isPaymentTimeout ? 'Platba vypršela' : 
          isPaymentFailed ? 'Platba se nezdařila' : 
          UI_MESSAGES.PAYMENT_SUCCESS}
       </h2>
       
-      <div className="payment-details">
+      <div className={styles.paymentDetails}>
         <h3>Detaily platby</h3>
         
         {/* Single Product Payment */}
         {'productName' in paymentData && (
-          <div className="detail-row">
-            <span className="detail-label">Produkt:</span>
-            <span className="detail-value">{paymentData.productName}</span>
+          <div className={styles.detailRow}>
+            <span className={styles.detailLabel}>Produkt:</span>
+            <span className={styles.detailValue}>{paymentData.productName}</span>
           </div>
         )}
         
         {/* Multi-Product Payment */}
         {'items' in paymentData && (
-          <div className="detail-row">
-            <span className="detail-label">Položky:</span>
-            <span className="detail-value">{paymentData.items.length} produktů</span>
+          <div className={styles.detailRow}>
+            <span className={styles.detailLabel}>Položky:</span>
+            <span className={styles.detailValue}>{paymentData.items.length} produktů</span>
           </div>
         )}
         
-        <div className="detail-row">
-          <span className="detail-label">Částka:</span>
-          <span className="detail-value">{formatPrice('amount' in paymentData ? paymentData.amount : paymentData.totalAmount)}</span>
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Částka:</span>
+          <span className={styles.detailValue}>{formatPrice('amount' in paymentData ? paymentData.amount : paymentData.totalAmount)}</span>
         </div>
-        <div className="detail-row">
-          <span className="detail-label">Email:</span>
-          <span className="detail-value">{paymentData.customerEmail}</span>
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Email:</span>
+          <span className={styles.detailValue}>{paymentData.customerEmail}</span>
         </div>
       </div>
       
       <button 
         onClick={onContinue} 
-        className="continue-btn"
+        className={styles.continueBtn}
         type="button"
         aria-label="Zpět k produktům"
       >

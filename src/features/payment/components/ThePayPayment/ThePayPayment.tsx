@@ -12,6 +12,7 @@ import {
 } from 'pi-kiosk-shared';
 import { useServerSentEvents } from '../../../realtime';
 import type { SSEMessage } from '../../../realtime/hooks/useServerSentEvents';
+import { QRDisplay } from '../QRDisplay/QRDisplay';
 
 // Configuration: Switch between 'redirect' and 'qr' modes
 // TODO: Move to environment config or database setting
@@ -488,42 +489,11 @@ function renderQRMode(
   }
   
   return (
-    <div className={CSS_CLASSES.PAYMENT_CONTAINER}>
-      <div className={`qr-section ${CSS_CLASSES.CARD}`}>
-        <div className="qr-content">
-          <h2 className="qr-title">Naskenujte QR kód</h2>
-          <div className="qr-code-container">
-            <img 
-              src={qrCodeUrl} 
-              alt="ThePay Payment QR Code" 
-              className="qr-code"
-              loading="lazy"
-            />
-          </div>
-          
-          <div className={`payment-status ${CSS_CLASSES.LOADING}`}>
-            <p className="status-text">Čekám na platbu</p>
-            <p className="amount-text">{paymentData?.amount} Kč</p>
-            <div className="loading-spinner" aria-hidden="true"></div>
-          </div>
-          
-          <p className="instructions">
-            Dokončete platbu na vašem telefonu
-          </p>
-        </div>
-        
-        <div className="qr-actions">
-          <button
-            onClick={onCancel}
-            className="cancel-qr-btn"
-            type="button"
-            aria-label="Zrušit platbu"
-          >
-            ← Zpět k výběru platby
-          </button>
-        </div>
-      </div>
-    </div>
+    <QRDisplay
+      qrCodeUrl={qrCodeUrl}
+      paymentData={paymentData || undefined}
+      onCancel={onCancel}
+    />
   );
 }
 

@@ -1,5 +1,6 @@
 // React is not needed with new JSX transform
 import { KioskProduct, UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 'pi-kiosk-shared';
+import styles from './ProductGrid.module.css';
 
 interface ProductGridProps {
   products: KioskProduct[];
@@ -26,8 +27,8 @@ export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading,
 
   if (isLoading) {
     return (
-      <div className={`loading-state ${CSS_CLASSES.LOADING}`}>
-        <div className="spinner" aria-label="Loading"></div>
+      <div className={`${styles.loadingState} ${CSS_CLASSES.LOADING}`}>
+        <div className={styles.spinner} aria-label="Loading"></div>
         <p>{UI_MESSAGES.LOADING_PRODUCTS}</p>
       </div>
     );
@@ -35,14 +36,14 @@ export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading,
 
   if (error) {
     return (
-      <div className={`error-state ${CSS_CLASSES.ERROR}`} role="alert">
-        <div className="error-icon">❌</div>
-        <p className="error-message">
+      <div className={`${styles.errorState} ${CSS_CLASSES.ERROR}`} role="alert">
+        <div className={styles.errorIcon}>❌</div>
+        <p className={styles.errorMessage}>
           {error.message || UI_MESSAGES.NETWORK_ERROR}
         </p>
         <button 
           onClick={handleRetry} 
-          className={`retry-btn ${CSS_CLASSES.BUTTON_PRIMARY}`}
+          className={`${styles.retryBtn} ${CSS_CLASSES.BUTTON_PRIMARY}`}
           type="button"
         >
           🔄 Zkusit znovu
@@ -53,8 +54,8 @@ export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading,
 
   if (products.length === 0) {
     return (
-      <div className="empty-state" role="status">
-        <div className="empty-icon">📦</div>
+      <div className={styles.emptyState} role="status">
+        <div className={styles.emptyIcon}>📦</div>
         <p>{UI_MESSAGES.NO_PRODUCTS}</p>
       </div>
     );
@@ -64,24 +65,24 @@ export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading,
   const availableProducts = products.filter(product => product.quantityInStock > 0);
 
   return (
-    <div className={`products-grid ${CSS_CLASSES.GRID}`} role="grid">
+    <div className={`${styles.productsGrid} ${CSS_CLASSES.GRID}`} role="grid">
       {availableProducts.map((product) => (
         <div 
           key={product.id} 
-          className={`product-card ${CSS_CLASSES.CARD}`}
+          className={`${styles.productCard} ${CSS_CLASSES.CARD}`}
           role="gridcell"
           tabIndex={-1}
           aria-label={`${product.name} - ${formatPrice(product.price)}`}
         >
           
-          <div className="product-info">
-            <h3 className="product-name">{product.name}</h3>
+          <div className={styles.productInfo}>
+            <h3 className={styles.productName}>{product.name}</h3>
           </div>
           
-          <div className="product-bottom-section">
+          <div className={styles.productBottomSection}>
             <button
               onClick={(e) => handleAddToCart(e, product)}
-              className="add-to-cart-btn"
+              className={styles.addToCartBtn}
               title="Přidat do košíku"
               type="button"
             >
@@ -90,7 +91,7 @@ export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading,
           </div>
           
           {getItemQuantity(product.id) > 0 && (
-            <div className="cart-quantity">
+            <div className={styles.cartQuantity}>
               🛒 V košíku: {getItemQuantity(product.id)}
             </div>
           )}

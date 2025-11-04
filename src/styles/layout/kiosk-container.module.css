@@ -1,0 +1,12 @@
+/* Kiosk Container Layout Module */
+
+.kioskContainer {
+  width: var(--kiosk-width);
+  height: var(--kiosk-height);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-kiosk);
+  overflow: hidden;
+}
+

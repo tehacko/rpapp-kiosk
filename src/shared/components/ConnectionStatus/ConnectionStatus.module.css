@@ -1,0 +1,20 @@
+/* ConnectionStatus Component Styles */
+
+.connectionStatus {
+  font-size: var(--font-size-base);
+  opacity: var(--opacity-hover);
+}
+
+.connectionStatus.connected {
+  opacity: var(--opacity-active);
+}
+
+.statusIndicator {
+  display: inline-block;
+  margin-right: var(--spacing-2);
+}
+
+.statusText {
+  font-size: var(--font-size-base);
+}
+

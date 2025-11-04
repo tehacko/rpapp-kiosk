@@ -1,0 +1,44 @@
+/* ErrorBoundary Component Styles */
+
+.errorBoundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--spacing-10);
+  text-align: center;
+  background: var(--color-primary-gradient);
+  color: var(--color-text-primary);
+}
+
+.errorBoundary h2 {
+  font-size: var(--font-size-4xl);
+  margin-bottom: var(--spacing-8);
+  color: var(--color-error);
+}
+
+.errorBoundary p {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--spacing-10);
+  color: var(--color-text-secondary);
+}
+
+.errorBoundary button {
+  background: var(--color-info-gradient);
+  color: var(--color-text-primary);
+  border: none;
+  padding: var(--spacing-6) var(--spacing-24);
+  border-radius: var(--radius-xl);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: var(--transition-base);
+  box-shadow: 0 4px 15px var(--color-shadow-info);
+}
+
+.errorBoundary button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--color-shadow-info-hover);
+}
+

@@ -1,3 +1,5 @@
+import styles from './CartHeader.module.css';
+
 interface CartHeaderProps {
   isEmpty: boolean;
   totalItems: number;
@@ -16,18 +18,18 @@ export function CartHeader({
   }
 
   return (
-    <div className="cart-header">
-      <div className="cart-buttons-header">
+    <div className={styles.cartHeader}>
+      <div className={styles.cartButtonsHeader}>
         <button
           onClick={onCheckout}
-          className="checkout-btn-header"
+          className={styles.checkoutBtnHeader}
           type="button"
         >
           💳 Zaplatit
         </button>
         <button
           onClick={onClear}
-          className="clear-cart-btn-header"
+          className={styles.clearCartBtnHeader}
           type="button"
         >
           🛒 Vyprázdnit košík ({totalItems})

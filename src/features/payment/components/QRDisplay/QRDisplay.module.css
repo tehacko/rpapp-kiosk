@@ -1,0 +1,180 @@
+/* QRDisplay Component Styles */
+
+.qrSection {
+  background: var(--color-bg-glass-light);
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  backdrop-filter: var(--backdrop-blur-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 262px;
+  height: auto;
+  width: 100%;
+}
+
+.qrContent {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+.qrCodeContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  width: 168px;
+  height: 168px;
+  padding: var(--spacing-4);
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.qrCode {
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 15px var(--color-shadow-heavy);
+  width: 100%;
+  height: 100%;
+  max-width: 152px;
+  max-height: 152px;
+  object-fit: contain;
+}
+
+.qrInfoPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+  padding: 0;
+}
+
+.qrTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-light);
+  margin: 0;
+  text-align: left;
+  line-height: var(--line-height-normal);
+}
+
+.paymentStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  gap: var(--spacing-2);
+  width: 100%;
+}
+
+.loadingSpinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border-medium);
+  border-top: 2px solid var(--color-success);
+  border-radius: var(--radius-full);
+  animation: var(--animation-spin);
+  margin: 0;
+}
+
+.statusText {
+  font-size: var(--font-size-base);
+  color: var(--color-text-light);
+  margin: 0;
+  font-weight: var(--font-weight-bold);
+  text-align: left;
+  line-height: var(--line-height-normal);
+}
+
+.amountText {
+  font-size: var(--font-size-lg);
+  color: var(--color-success);
+  margin: 0;
+  font-weight: var(--font-weight-bold);
+  text-align: left;
+  line-height: var(--line-height-normal);
+}
+
+.instructions {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin: 0;
+  text-align: left;
+  line-height: var(--line-height-normal);
+}
+
+.paymentInfo {
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-2) 0;
+  line-height: var(--line-height-normal);
+  flex-shrink: 0;
+  background: var(--color-bg-glass);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2);
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+}
+
+.infoValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+  font-weight: var(--font-weight-bold);
+}
+
+.qrActions {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+
+.cancelQrBtn {
+  background: var(--color-bg-glass-medium);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-heavy);
+  padding: var(--spacing-3) var(--spacing-6);
+  font-size: var(--font-size-sm);
+  border-radius: 0;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  min-height: 36px;
+  width: 100%;
+  margin: 0;
+}
+
+.cancelQrBtn:hover {
+  background: var(--color-bg-glass-heavy);
+  border-color: var(--color-border-dark);
+}
+
+.cancelQrBtn:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.4);
+}
+

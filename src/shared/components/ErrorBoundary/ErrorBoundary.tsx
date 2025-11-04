@@ -1,4 +1,5 @@
 import { Component, ReactNode } from 'react';
+import styles from './ErrorBoundary.module.css';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -27,7 +28,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="error-boundary">
+        <div className={styles.errorBoundary}>
           <h2>❌ Něco se pokazilo</h2>
           <p>Omlouváme se, došlo k neočekávané chybě.</p>
           <button onClick={() => this.setState({ hasError: false })}>

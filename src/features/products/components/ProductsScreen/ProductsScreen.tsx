@@ -1,7 +1,7 @@
 import { KioskProduct } from 'pi-kiosk-shared';
 import { ProductGrid } from '../ProductGrid';
-import { ConnectionStatus } from '../../../../shared/components';
 import { CartHeader } from '../../../cart/components/CartHeader';
+import styles from './ProductsScreen.module.css';
 
 interface ProductsScreenProps {
   products: KioskProduct[];
@@ -29,12 +29,12 @@ export function ProductsScreen({
   totalItems,
   onCheckout,
   onClearCart,
-  isConnected,
+  isConnected: _isConnected,
   qrCodeUrl
 }: ProductsScreenProps) {
   return (
-    <div className="products-screen">
-      <div className="products-header">
+    <div className={styles.productsScreen}>
+      <div className={styles.productsHeader}>
         {!isCartEmpty && !qrCodeUrl ? (
           <CartHeader
             isEmpty={false} // CartHeader handles its own isEmpty logic
@@ -43,12 +43,10 @@ export function ProductsScreen({
             onClear={onClearCart}
           />
         ) : !qrCodeUrl ? (
-          <div className="header-left">
-            <h2 className="product-select-title">Vyberte si produkt</h2>
+          <div className={styles.headerLeft}>
+            <h2 className={styles.productSelectTitle}>Vyberte si produkt</h2>
           </div>
         ) : null}
-        
-        {isCartEmpty && <ConnectionStatus isConnected={isConnected} />}
       </div>
 
       <ProductGrid

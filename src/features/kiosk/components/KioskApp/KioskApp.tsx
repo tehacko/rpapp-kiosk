@@ -24,6 +24,7 @@ import { ProductsScreen } from '../../../products/components/ProductsScreen';
 import { PaymentScreen } from '../../../payment/components/PaymentScreen';
 import { ConfirmationScreen } from '../../../payment/components/ConfirmationScreen/ConfirmationScreen';
 import { FullscreenButton } from '../../../../shared/components';
+import styles from './KioskApp.module.css';
 
 export function KioskApp() {
   // Kiosk configuration
@@ -230,6 +231,38 @@ export function KioskApp() {
     setSelectedPaymentMethod(undefined);
   }, [stopMonitoring, clearQR, setPaymentStep, setSelectedPaymentMethod]);
 
+  // Email validation function
+  const validateEmail = useCallback((emailValue: string): string | null => {
+    const trimmedEmail = emailValue.trim();
+    if (!trimmedEmail) {
+      return 'Email je povinný';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return 'Neplatný formát emailu';
+    }
+    return null;
+  }, []);
+
+  // Next navigation with email validation
+  const handleNext = useCallback(() => {
+    if (currentScreen === 'payment') {
+      // Validate email before proceeding from step 2 to step 3
+      if (paymentStep === 2) {
+        const validationError = validateEmail(email);
+        if (validationError) {
+          // Trigger error display in PaymentForm by dispatching a custom event
+          // PaymentForm will handle showing the error inline
+          window.dispatchEvent(new CustomEvent('payment-email-validation-error', {
+            detail: { error: validationError }
+          }));
+          return; // Don't proceed if validation fails
+        }
+      }
+      setPaymentStep(paymentStep + 1);
+    }
+  }, [currentScreen, paymentStep, email, validateEmail, setPaymentStep]);
+
   // Back navigation
   const handleBack = useCallback(() => {
     if (currentScreen === 'payment') {
@@ -255,26 +288,23 @@ export function KioskApp() {
   }, [handleError]);
 
   const handleThePayPaymentCancel = useCallback(() => {
-    console.log('🚫 ThePay payment cancelled, resetting to default screen');
-    // Reset payment state completely
+    console.log('🚫 ThePay payment cancelled, going back to payment method selection');
+    // Go back one step to payment method selection (step 3), same as QR payment
+    stopMonitoring();
     clearQR();
-    setPaymentStep(1); // Reset to first payment step
+    setPaymentStep(3);
     setSelectedPaymentMethod(undefined);
-    resetPaymentState();
-    // Navigate back to products screen
-    clearCart();
-    goToProducts();
-  }, [clearQR, setPaymentStep, setSelectedPaymentMethod, resetPaymentState, clearCart, goToProducts]);
+  }, [stopMonitoring, clearQR, setPaymentStep, setSelectedPaymentMethod]);
 
   // Show error screen if kiosk ID is invalid
   if (!isValid || kioskError) {
     return (
-      <div className="kiosk-app kiosk-mode" data-testid="kiosk-error-screen">
-        <div className="error-screen">
-          <div className="error-content">
+      <div className={`${styles.kioskApp} ${styles.kioskMode}`} data-testid="kiosk-error-screen">
+        <div className={styles.errorScreen}>
+          <div className={styles.errorContent}>
             <h1>❌ Chyba konfigurace kiosku</h1>
-            <p className="error-message">Error: {kioskError}</p>
-            <div className="error-instructions">
+            <p className={styles.errorMessage}>Error: {kioskError}</p>
+            <div className={styles.errorInstructions}>
               <h3>Jak opravit:</h3>
               <ol>
                 <li>
@@ -286,7 +316,7 @@ export function KioskApp() {
                 </li>
               </ol>
             </div>
-            <button onClick={() => window.location.reload()} className="retry-btn">
+            <button onClick={() => window.location.reload()} className={styles.retryBtn}>
               🔄 Zkusit znovu
             </button>
           </div>
@@ -296,7 +326,7 @@ export function KioskApp() {
   }
 
   return (
-    <div className="kiosk-app kiosk-mode">
+    <div className={`${styles.kioskApp} ${styles.kioskMode}`}>
       {/* Products Screen */}
       {currentScreen === 'products' && (
         <ProductsScreen
@@ -335,7 +365,7 @@ export function KioskApp() {
           onThePayPaymentError={handleThePayPaymentError}
           onThePayPaymentCancel={handleThePayPaymentCancel}
           onBack={handleBack}
-          onNext={() => setPaymentStep(paymentStep + 1)}
+          onNext={handleNext}
           onStepChange={setPaymentStep}
         />
       )}

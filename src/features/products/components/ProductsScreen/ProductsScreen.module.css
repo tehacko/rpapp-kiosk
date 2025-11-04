@@ -1,0 +1,39 @@
+/* ProductsScreen Component Styles */
+
+.productsScreen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.productsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+  width: 100%;
+}
+
+.productsHeader:has(.cartHeader) {
+  padding: 0 var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  flex: 1;
+  text-align: center;
+}
+
+.productSelectTitle {
+  font-size: var(--font-size-2xl);
+  margin: 0;
+  text-shadow: var(--text-shadow-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+

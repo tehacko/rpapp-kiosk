@@ -1,5 +1,6 @@
 import { FC } from 'react';
 import { useFullscreen } from '../../../features/kiosk/hooks/useFullscreen';
+import styles from './FullscreenButton.module.css';
 
 export const FullscreenButton: FC = () => {
   const { toggleFullscreen } = useFullscreen();
@@ -7,7 +8,7 @@ export const FullscreenButton: FC = () => {
   return (
     <button
       onClick={toggleFullscreen}
-      className="fullscreen-btn-bottom"
+      className={styles.fullscreenBtnBottom}
       type="button"
       title="Přepnout na celou obrazovku"
     >

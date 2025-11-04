@@ -1,7 +1,7 @@
 import React from 'react';
 import { Cart as CartType, CartItem } from 'pi-kiosk-shared';
 import { formatPrice } from 'pi-kiosk-shared';
-import './Cart.css';
+import styles from './Cart.module.css';
 
 interface CartProps {
   cart: CartType;
@@ -20,8 +20,8 @@ export const Cart: React.FC<CartProps> = ({
 }) => {
   if (cart.items.length === 0) {
     return (
-      <div className="cart-empty">
-        <div className="empty-icon">🛒</div>
+      <div className={styles.cartEmpty}>
+        <div className={styles.emptyIcon}>🛒</div>
         <p>Košík je prázdný</p>
         <p>Přidejte produkty pro pokračování</p>
       </div>
@@ -29,22 +29,22 @@ export const Cart: React.FC<CartProps> = ({
   }
 
   return (
-    <div className="cart">
-      <div className="cart-header">
+    <div className={styles.cart}>
+      <div className={styles.cartHeader}>
         <h3>🛒 Košík ({cart.totalItems})</h3>
         <button 
           onClick={onClearCart}
-          className="clear-cart-btn"
+          className={styles.clearCartBtn}
           title="Vymazat košík"
         >
           🗑️ Vymazat
         </button>
       </div>
       
-      <div className="cart-items">
+      <div className={styles.cartItems}>
         {cart.items.map((item: CartItem) => (
-          <div key={item.product.id} className="cart-item">
-            <div className="item-image">
+          <div key={item.product.id} className={styles.cartItem}>
+            <div className={styles.itemImage}>
               {item.product.imageUrl ? (
                 <img 
                   src={item.product.imageUrl} 
@@ -52,28 +52,28 @@ export const Cart: React.FC<CartProps> = ({
                   loading="lazy"
                 />
               ) : (
-                <span className="image-fallback">{item.product.image || '📦'}</span>
+                <span className={styles.imageFallback}>{item.product.image || '📦'}</span>
               )}
             </div>
             
-            <div className="item-details">
-              <h4 className="item-name">{item.product.name}</h4>
-              <p className="item-price">{formatPrice(item.product.price)}</p>
+            <div className={styles.itemDetails}>
+              <h4 className={styles.itemName}>{item.product.name}</h4>
+              <p className={styles.itemPrice}>{formatPrice(item.product.price)}</p>
             </div>
             
-            <div className="item-controls">
-              <div className="quantity-controls">
+            <div className={styles.itemControls}>
+              <div className={styles.quantityControls}>
                 <button
                   onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
-                  className="quantity-btn"
+                  className={styles.quantityBtn}
                   disabled={item.quantity <= 1}
                 >
                   -
                 </button>
-                <span className="quantity">{item.quantity}</span>
+                <span className={styles.quantity}>{item.quantity}</span>
                 <button
                   onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
-                  className="quantity-btn"
+                  className={styles.quantityBtn}
                 >
                   +
                 </button>
@@ -81,31 +81,31 @@ export const Cart: React.FC<CartProps> = ({
               
               <button
                 onClick={() => onRemoveItem(item.product.id)}
-                className="remove-btn"
+                className={styles.removeBtn}
                 title="Odebrat z košíku"
               >
                 ❌
               </button>
             </div>
             
-            <div className="item-total">
+            <div className={styles.itemTotal}>
               {formatPrice(item.product.price * item.quantity)}
             </div>
           </div>
         ))}
       </div>
       
-      <div className="cart-footer">
-        <div className="cart-total">
-          <div className="total-line">
+      <div className={styles.cartFooter}>
+        <div className={styles.cartTotal}>
+          <div className={styles.totalLine}>
             <span>Celkem:</span>
-            <span className="total-amount">{formatPrice(cart.totalAmount)}</span>
+            <span className={styles.totalAmount}>{formatPrice(cart.totalAmount)}</span>
           </div>
         </div>
         
         <button
           onClick={onProceedToCheckout}
-          className="checkout-btn"
+          className={styles.checkoutBtn}
         >
           💳 Pokračovat k platbě
         </button>
