@@ -17,8 +17,6 @@ export function QRDisplay({
   paymentData,
   onCancel,
   title = "Naskenujte QR kód",
-  instructions = "Dokončete platbu na vašem telefonu",
-  statusText = "Čekám na platbu",
   amount
 }: QRDisplayProps) {
   // Extract amount from paymentData if not provided directly
