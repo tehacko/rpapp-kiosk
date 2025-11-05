@@ -39,17 +39,46 @@
 
 .cartTotalBar {
   text-align: center;
-  padding: var(--spacing-4) 0;
-  border-bottom: 2px solid var(--color-border-medium);
-  font-size: var(--font-size-4xl);
+  padding: var(--spacing-4) var(--spacing-5);
+  margin: 0 var(--spacing-2);
+  border-bottom: 2px solid var(--color-border-light);
+  border-left: 3px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-glass);
+  font-size: var(--font-size-xl); /* Base size matches item prices */
   color: var(--color-success);
   font-weight: var(--font-weight-bold);
-  background: transparent;
   flex-shrink: 0;
   position: sticky;
   bottom: 56px;
   z-index: var(--z-sticky);
-  width: 100%;
+  width: calc(100% - var(--spacing-4));
+  box-sizing: border-box;
+}
+
+/* Size variants to match item price sizes - all text scales together */
+.cartTotalBar.size1 {
+  font-size: calc(var(--font-size-xl) * 1.5);
+}
+
+.cartTotalBar.size1 strong {
+  font-size: calc(var(--font-size-xl) * 1.5);
+}
+
+.cartTotalBar.size2 {
+  font-size: calc(var(--font-size-xl) * 1.4);
+}
+
+.cartTotalBar.size2 strong {
+  font-size: calc(var(--font-size-xl) * 1.4);
+}
+
+.cartTotalBar.size3 {
+  font-size: calc(var(--font-size-xl) * 1.2);
+}
+
+.cartTotalBar.size3 strong {
+  font-size: calc(var(--font-size-xl) * 1.2);
 }
 
 .paymentButtonsBar {
@@ -91,7 +120,7 @@
   border: none;
   padding: var(--spacing-5) var(--spacing-6);
   border-radius: var(--radius-xl);
-  font-size: 21px;
+  font-size: var(--font-size-5xl);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
   transition: var(--transition-fast);
@@ -104,6 +133,22 @@
   gap: var(--spacing-3);
   position: relative;
   overflow: hidden;
+}
+
+/* Size variants for buttons - slightly smaller for 1-2 items */
+.paymentButtonsBar.size1 .checkoutBtnHeader,
+.paymentButtonsBar.size1 .clearCartBtnHeader {
+  font-size: calc(var(--font-size-5xl) * 0.85);
+}
+
+.paymentButtonsBar.size2 .checkoutBtnHeader,
+.paymentButtonsBar.size2 .clearCartBtnHeader {
+  font-size: calc(var(--font-size-5xl) * 0.9);
+}
+
+.paymentButtonsBar.size3 .checkoutBtnHeader,
+.paymentButtonsBar.size3 .clearCartBtnHeader {
+  font-size: calc(var(--font-size-5xl) * 0.95);
 }
 
 .checkoutBtnHeader::before {
@@ -135,7 +180,7 @@
   border: none;
   padding: var(--spacing-5) var(--spacing-6);
   border-radius: var(--radius-xl);
-  font-size: 19px;
+  font-size: var(--font-size-5xl);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
   transition: var(--transition-fast);

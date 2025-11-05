@@ -30,10 +30,11 @@
 }
 
 .productSelectTitle {
-  font-size: var(--font-size-2xl);
-  margin: 0;
+  font-size: var(--font-size-xl);
+  margin: 3px 0 0 0;
   text-shadow: var(--text-shadow-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
   text-align: center;
 }
 

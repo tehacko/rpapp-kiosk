@@ -58,7 +58,8 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
       <div className={styles.paymentScreenContent}>
         {/* Scrollable Content Area */}
         <div className={styles.paymentContentScrollable}>
-          {!qrCodeUrl && (
+          {/* PaymentForm - Don't show when ThePay is active on step 5 */}
+          {!qrCodeUrl && !(selectedPaymentMethod === 'thepay' && paymentStep === 5) && (
             <PaymentForm
               cart={cart}
               onSubmit={onPaymentSubmit}
@@ -91,23 +92,33 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
 
         {/* Show total price above buttons on step 1 */}
         {!qrCodeUrl && paymentStep === 1 && cart && (
-          <div className={styles.cartTotalBar}>
+          <div className={`${styles.cartTotalBar} ${
+            cart.items.length === 1 ? styles.size1 :
+            cart.items.length === 2 ? styles.size2 :
+            cart.items.length === 3 ? styles.size3 :
+            ''
+          }`}>
             <strong>Celkem: {formatPrice(cart.totalAmount)}</strong>
           </div>
         )}
 
         {/* Fixed Bottom Button Bar - Always visible on steps 1-3 */}
         {!qrCodeUrl && paymentStep !== 5 && (
-          <div className={styles.paymentButtonsBar}>
+          <div className={`${styles.paymentButtonsBar} ${
+            paymentStep === 1 && cart.items.length === 1 ? styles.size1 :
+            paymentStep === 1 && cart.items.length === 2 ? styles.size2 :
+            paymentStep === 1 && cart.items.length === 3 ? styles.size3 :
+            ''
+          }`}>
             <div className={styles.cartButtonsHeader}>
+              <button onClick={onBack} className={styles.clearCartBtnHeader} type="button">
+                ← Zpět
+              </button>
               {paymentStep !== 3 && (
                 <button onClick={onNext} className={styles.checkoutBtnHeader} type="button">
                   {paymentStep === 1 || paymentStep === 2 ? '➡️ Další krok' : '💳 Zaplatit'}
                 </button>
               )}
-              <button onClick={onBack} className={styles.clearCartBtnHeader} type="button">
-                ← Zpět
-              </button>
             </div>
           </div>
         )}

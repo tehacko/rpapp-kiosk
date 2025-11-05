@@ -35,42 +35,35 @@ export function QRDisplay({
 
   return (
     <div className={`${styles.qrSection} ${CSS_CLASSES.CARD}`}>
-      <div className={styles.qrContent}>
-        {/* QR Code on Left */}
-        <div className={styles.qrCodeContainer}>
-          <img 
-            src={qrCodeUrl} 
-            alt="QR Code pro platbu" 
-            className={styles.qrCode}
-            loading="lazy"
-          />
-        </div>
-        
-        {/* Payment Info on Right */}
+      {/* Left side - Text content */}
+      <div className={styles.qrLeftContent}>
         <div className={styles.qrInfoPanel}>
           <h2 className={styles.qrTitle}>{title}</h2>
-          
-          <div className={`${styles.paymentStatus} ${CSS_CLASSES.LOADING}`}>
-            <p className={styles.statusText}>{statusText}</p>
-            {displayAmount && (
-              <p className={styles.amountText}>{displayAmount}</p>
-            )}
-            <div className={styles.loadingSpinner} aria-hidden="true"></div>
-          </div>
-          
-          <p className={styles.instructions}>{instructions}</p>
+          {displayAmount && (
+            <p className={styles.amountText}>{displayAmount}</p>
+          )}
+        </div>
+        
+        <div className={styles.qrActions}>
+          <button
+            onClick={onCancel}
+            className={styles.cancelQrBtn}
+            type="button"
+            aria-label="Zpět"
+          >
+            ← Zpět
+          </button>
         </div>
       </div>
       
-      <div className={styles.qrActions}>
-        <button
-          onClick={onCancel}
-          className={styles.cancelQrBtn}
-          type="button"
-          aria-label="Zrušit platbu"
-        >
-          ← Zpět k výběru platby
-        </button>
+      {/* Right side - QR Code */}
+      <div className={styles.qrRightContent}>
+        <img 
+          src={qrCodeUrl} 
+          alt="QR Code pro platbu" 
+          className={styles.qrCode}
+          loading="lazy"
+        />
       </div>
     </div>
   );

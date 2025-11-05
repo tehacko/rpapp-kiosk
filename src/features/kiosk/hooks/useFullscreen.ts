@@ -17,35 +17,7 @@ export function useFullscreen() {
     }
   }, []);
 
-  // Auto-enter fullscreen on mount - only if user has interacted
-  // Note: Fullscreen API requires user gesture, so we'll only attempt after user interaction
-  useEffect(() => {
-    const handleUserInteraction = () => {
-      const enterFullscreen = async () => {
-        try {
-          if (!document.fullscreenElement) {
-            await document.documentElement.requestFullscreen();
-            // Remove listener after successful attempt
-            document.removeEventListener('click', handleUserInteraction);
-            document.removeEventListener('touchstart', handleUserInteraction);
-          }
-        } catch (error) {
-          // Silently fail - fullscreen requires user gesture
-          // This is expected behavior in browsers
-        }
-      };
-      enterFullscreen();
-    };
-
-    // Try to enter fullscreen after first user interaction
-    document.addEventListener('click', handleUserInteraction, { once: true });
-    document.addEventListener('touchstart', handleUserInteraction, { once: true });
-
-    return () => {
-      document.removeEventListener('click', handleUserInteraction);
-      document.removeEventListener('touchstart', handleUserInteraction);
-    };
-  }, []);
+  // Removed auto-enter fullscreen behavior - fullscreen should only be toggled via the FullscreenButton
 
   // Listen for fullscreen changes
   useEffect(() => {

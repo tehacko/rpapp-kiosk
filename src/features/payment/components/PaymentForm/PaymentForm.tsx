@@ -79,13 +79,28 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
     <div className={styles.paymentFormContainer}>
       {/* Cart Display - Only shown on step 1 (cart approval) */}
       {currentStep === 1 && cart && cart.items.length > 0 && (
-        <div className={`${styles.cartSummary} ${CSS_CLASSES.CARD}`}>
+        <div className={`${styles.cartSummary} ${CSS_CLASSES.CARD} ${
+          cart.items.length === 1 ? styles.size1 :
+          cart.items.length === 2 ? styles.size2 :
+          cart.items.length === 3 ? styles.size3 :
+          ''
+        }`}>
           <h2>🛒 Košík ({cart.totalItems} položek)</h2>
-          <div className={styles.cartItemsSummary}>
-            {cart.items.map((item) => (
+          <div className={`${styles.cartItemsSummary} ${
+            cart.items.length === 1 ? styles.size1 :
+            cart.items.length === 2 ? styles.size2 :
+            cart.items.length === 3 ? styles.size3 :
+            ''
+          }`}>
+            {[...cart.items]
+              .sort((a, b) => (b.product.price * b.quantity) - (a.product.price * a.quantity))
+              .map((item) => (
               <div key={item.product.id} className={styles.cartItemSummary}>
                 <div className={styles.itemInfo}>
-                  <span className={styles.itemName}>{item.product.name} × {item.quantity}</span>
+                  <span className={styles.itemName}>
+                    <span className={styles.itemQuantity}>{item.quantity}×</span>
+                    <span>{item.product.name}</span>
+                  </span>
                 </div>
                 <div className={styles.itemPrice}>
                   {formatPrice(item.product.price * item.quantity)}
@@ -96,12 +111,7 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
         </div>
       )}
 
-      {/* Step 1: Cart Approval */}
-      {currentStep === 1 && (
-        <div className={styles.stepContent}>
-          {/* Cart list is shown above */}
-        </div>
-      )}
+      {/* Step 1: Cart Approval - no stepContent needed, cart is shown above */}
 
       {/* Step 2: Email Input */}
       {currentStep === 2 && (

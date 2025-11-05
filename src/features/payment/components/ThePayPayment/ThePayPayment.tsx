@@ -13,6 +13,7 @@ import {
 import { useServerSentEvents } from '../../../realtime';
 import type { SSEMessage } from '../../../realtime/hooks/useServerSentEvents';
 import { QRDisplay } from '../QRDisplay/QRDisplay';
+import styles from './ThePayPayment.module.css';
 
 // Configuration: Switch between 'redirect' and 'qr' modes
 // TODO: Move to environment config or database setting
@@ -434,9 +435,9 @@ function renderRedirectMode(
   }
   
   return (
-    <div className={CSS_CLASSES.PAYMENT_CONTAINER}>
-      <div className={CSS_CLASSES.LOADING_CONTAINER}>
-        <div className={CSS_CLASSES.LOADING_SPINNER}></div>
+    <div className={styles.processingContainer}>
+      <div className={styles.processingMessage}>
+        <div className={styles.processingSpinner} aria-hidden="true"></div>
         <p>Přesměrovávám na platební bránu ThePay...</p>
       </div>
     </div>
@@ -479,9 +480,9 @@ function renderQRMode(
   
   if (status === 'creating' || !qrCodeUrl) {
     return (
-      <div className={CSS_CLASSES.PAYMENT_CONTAINER}>
-        <div className={CSS_CLASSES.LOADING_CONTAINER}>
-          <div className={CSS_CLASSES.LOADING_SPINNER}></div>
+      <div className={styles.processingContainer}>
+        <div className={styles.processingMessage}>
+          <div className={styles.processingSpinner} aria-hidden="true"></div>
           <p>Vytváření platby...</p>
         </div>
       </div>
@@ -493,6 +494,8 @@ function renderQRMode(
       qrCodeUrl={qrCodeUrl}
       paymentData={paymentData || undefined}
       onCancel={onCancel}
+      title="Naskenujte QR kód"
+      instructions="Dokončete platbu prostřednictvím ThePay na vašem telefonu"
     />
   );
 }
