@@ -15,6 +15,7 @@ interface PaymentScreenProps {
   paymentData: PaymentData | MultiProductPaymentData | null;
   isGeneratingQR: boolean;
   kioskId: number;
+  monitoringStartTime: number | null;
   onEmailChange: (email: string) => void;
   onPaymentMethodSelect: (method: 'qr' | 'thepay' | undefined) => void;
   onPaymentSubmit: (cart: CartType, email: string, method: 'qr' | 'thepay') => Promise<void>;
@@ -37,6 +38,7 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
   paymentData,
   isGeneratingQR,
   kioskId,
+  monitoringStartTime,
   onEmailChange,
   onPaymentMethodSelect,
   onPaymentSubmit,
@@ -74,7 +76,13 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
           )}
 
           {qrCodeUrl && paymentData && (
-            <QRDisplay qrCodeUrl={qrCodeUrl} paymentData={paymentData} onCancel={onCancelQRPayment} />
+            <QRDisplay 
+              qrCodeUrl={qrCodeUrl} 
+              paymentData={paymentData} 
+              onCancel={onCancelQRPayment}
+              showTimer={selectedPaymentMethod === 'qr'} // Show timer only for FIO QR payments
+              monitoringStartTime={monitoringStartTime} // Pass monitoring start time for synchronized timer
+            />
           )}
 
           {/* ThePay Payment Component */}

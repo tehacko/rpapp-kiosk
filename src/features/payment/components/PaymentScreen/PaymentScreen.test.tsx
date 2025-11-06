@@ -100,6 +100,7 @@ const defaultProps = {
   paymentData: null,
   isGeneratingQR: false,
   kioskId: 1,
+  monitoringStartTime: null,
   onEmailChange: jest.fn(),
   onPaymentMethodSelect: jest.fn(),
   onPaymentSubmit: jest.fn() as jest.MockedFunction<(cart: Cart, email: string, method: 'qr' | 'thepay') => Promise<void>>,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { 
   createAPIClient, 
   useErrorHandler, 
@@ -18,15 +18,15 @@ interface PaymentMonitoringActions {
     onPaymentComplete: (data: PaymentData | MultiProductPaymentData) => void,
     onPaymentTimeout: (data: PaymentData | MultiProductPaymentData) => void,
     onPaymentFailed: (data: PaymentData | MultiProductPaymentData) => void
-  ) => Promise<void>;
-  stopMonitoring: () => void;
+  ) => Promise<number | null>; // Returns monitoringStartTime or null if fallback is used
+  stopMonitoring: () => Promise<void>;
 }
 
 export function usePaymentMonitoring(): PaymentMonitoringActions {
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const { handleError } = useErrorHandler();
   const apiClient = createAPIClient();
   const currentPaymentId = useRef<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startPollingFallback = useCallback((
     paymentId: string,
@@ -47,7 +47,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
         if (pollCount > maxPolls || elapsedTime > 300000) { // 5 minutes timeout
           console.log('⏰ Polling fallback timed out');
           clearInterval(interval);
-          setPollingInterval(null);
+          pollingIntervalRef.current = null;
           
           // Call timeout callback
           const timeoutData: MultiProductPaymentData = {
@@ -66,7 +66,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
         if (response.success && response.data && response.data.status === TransactionStatus.COMPLETED) {
           console.log('✅ Payment completed via polling fallback');
           clearInterval(interval);
-          setPollingInterval(null);
+          pollingIntervalRef.current = null;
           
           const paymentData: MultiProductPaymentData = {
             paymentId: paymentId,
@@ -83,7 +83,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
         if (pollCount > 10) {
           console.error('❌ Too many polling errors, stopping');
           clearInterval(interval);
-          setPollingInterval(null);
+          pollingIntervalRef.current = null;
           const failedData: MultiProductPaymentData = {
             paymentId: paymentId,
             totalAmount: 0,
@@ -97,7 +97,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
       }
     }, 3000); // Poll every 3 seconds
 
-    setPollingInterval(interval);
+    pollingIntervalRef.current = interval;
     return interval;
   }, [apiClient]);
 
@@ -118,7 +118,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
       if (!sseConnected) {
         console.warn('⚠️ SSE not connected, using polling fallback');
         startPollingFallback(paymentId, onPaymentComplete, onPaymentTimeout, onPaymentFailed);
-        return;
+        return null; // Fallback doesn't have a start time from backend
       }
       
       // Start SSE-based payment monitoring
@@ -126,10 +126,10 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
         paymentId: paymentId
       });
       
-      if (response.success) {
+      if (response.success && response.data) {
         console.log('✅ Payment monitoring started successfully:', response);
         // The payment completion will be handled via SSE in the onMessage callback
-        return;
+        return response.data.monitoringStartTime || null;
       } else {
         throw new Error(response.message || 'Failed to start payment monitoring');
       }
@@ -137,16 +137,39 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
       console.error('❌ Error starting payment monitoring, using fallback:', error);
       // Fallback to polling if SSE monitoring fails
       startPollingFallback(paymentId, onPaymentComplete, onPaymentTimeout, onPaymentFailed);
+      return null; // Fallback doesn't have a start time from backend
     }
   }, [apiClient, handleError, startPollingFallback]);
 
-  const stopMonitoring = useCallback(() => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
+  const stopMonitoring = useCallback(async () => {
+    console.log('🛑 stopMonitoring called');
+    
+    // Stop frontend polling interval (using ref to always get current value)
+    if (pollingIntervalRef.current) {
+      console.log('🛑 Clearing frontend polling interval');
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
+    
+    // Stop backend FIO polling if there's an active payment
+    const paymentIdToStop = currentPaymentId.current;
+    if (paymentIdToStop) {
+      console.log(`🛑 Stopping backend monitoring for payment: ${paymentIdToStop}`);
+      try {
+        await apiClient.post(API_ENDPOINTS.PAYMENT_STOP_MONITORING, {
+          paymentId: paymentIdToStop
+        });
+        console.log(`✅ Successfully stopped backend monitoring for payment: ${paymentIdToStop}`);
+      } catch (error) {
+        console.error('❌ Error stopping backend monitoring:', error);
+        // Don't throw - we still want to clear local state even if backend call fails
+      }
+    } else {
+      console.log('🛑 No active payment ID to stop');
+    }
+    
     currentPaymentId.current = null;
-  }, [pollingInterval]);
+  }, [apiClient]);
 
   return {
     startMonitoring,

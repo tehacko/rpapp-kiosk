@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createAPIClient, API_ENDPOINTS, ApiResponse } from 'pi-kiosk-shared';
-import './ThePaySuccessPage.css';
+import { PaymentSuccessScreen, PaymentStatus } from '../shared/components/PaymentSuccessScreen';
 
 export function ThePaySuccessPage() {
   const [searchParams] = useSearchParams();
@@ -210,76 +210,37 @@ export function ThePaySuccessPage() {
     navigate(`/?kioskId=${kioskId}`);
   };
 
-  return (
-    <div className="thepay-success-page">
-      <div className="thepay-success-container">
-        {status === 'checking' && (
-          <>
-            <div className="thepay-status-icon">⏳</div>
-            <div className="thepay-status-title">Ověřuji platbu...</div>
-            <div className="thepay-status-message">Čekám na potvrzení platby</div>
-            <button
-              onClick={handleManualCancel}
-              className="thepay-cancel-btn"
-            >
-              ✕ Zrušit a vrátit se
-            </button>
-          </>
-        )}
-        {status === 'success' && (
-          <>
-            <div className="thepay-status-icon thepay-success-icon">✅</div>
-            <div className="thepay-status-title">Platba úspěšná!</div>
-            {countdown !== null && (
-              <div className="thepay-countdown">
-                Automatické přesměrování za {countdown}s
-              </div>
-            )}
-            <button
-              onClick={handleReturnToKiosk}
-              className="thepay-return-btn"
-            >
-              Vrátit se na kiosk
-            </button>
-          </>
-        )}
-        {status === 'failed' && (
-          <>
-            <div className="thepay-status-icon thepay-failed-icon">❌</div>
-            <div className="thepay-status-title">Platba se nezdařila</div>
-            {countdown !== null && (
-              <div className="thepay-countdown">
-                Automatické přesměrování za {countdown}s
-              </div>
-            )}
-            <button
-              onClick={handleReturnToKiosk}
-              className="thepay-return-btn"
-            >
-              Vrátit se na kiosk
-            </button>
-          </>
-        )}
-        {status === 'cancelled' && (
-          <>
-            <div className="thepay-status-icon thepay-cancelled-icon">🚫</div>
-            <div className="thepay-status-title">Platba zrušena</div>
-            <div className="thepay-status-message">Platba byla zrušena nebo nebyla dokončena</div>
-            {countdown !== null && (
-              <div className="thepay-countdown">
-                Automatické přesměrování za {countdown}s
-              </div>
-            )}
-            <button
-              onClick={handleReturnToKiosk}
-              className="thepay-return-btn"
-            >
-              Vrátit se na kiosk
-            </button>
-          </>
-        )}
+  // Show checking state with cancel button
+  if (status === 'checking') {
+    return (
+      <div className="thepay-success-page">
+        <div className="thepay-success-container">
+          <div className="thepay-status-icon">⏳</div>
+          <div className="thepay-status-title">Ověřuji platbu...</div>
+          <div className="thepay-status-message">Čekám na potvrzení platby</div>
+          <button
+            onClick={handleManualCancel}
+            className="thepay-cancel-btn"
+          >
+            ✕ Zrušit a vrátit se
+          </button>
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  // Map status to PaymentStatus type
+  const paymentStatus: PaymentStatus = status === 'success' ? 'success' 
+    : status === 'failed' ? 'failed'
+    : status === 'cancelled' ? 'cancelled'
+    : 'failed'; // fallback
+
+  return (
+    <PaymentSuccessScreen
+      status={paymentStatus}
+      countdown={countdown}
+      onContinue={handleReturnToKiosk}
+    />
   );
 }
 

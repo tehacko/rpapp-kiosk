@@ -16,7 +16,7 @@ interface UseQRGenerationProps {
   apiClient: APIClient;
   kioskId: number;
   onPaymentDataGenerated: (data: MultiProductPaymentData | null) => void;
-  onPaymentMonitoringStart: (paymentId: string) => Promise<void>;
+  onPaymentMonitoringStart: (paymentId: string) => Promise<number | null>; // Returns monitoringStartTime
 }
 
 export function useQRGeneration({

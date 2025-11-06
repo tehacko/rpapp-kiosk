@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { 
   Cart as CartType,
   PaymentData, 
@@ -38,23 +38,29 @@ export function KioskApp() {
   // Payment navigation and state
   const { currentScreen, paymentStep, goToPayment, goToProducts, goToConfirmation, setPaymentStep } = usePaymentNavigation();
   const { email, selectedPaymentMethod, paymentData, setEmail, setSelectedPaymentMethod, setPaymentData, resetPaymentState } = usePaymentState();
+  const [monitoringStartTime, setMonitoringStartTime] = useState<number | null>(null);
   
   // QR generation and monitoring
+  const { startMonitoring, stopMonitoring } = usePaymentMonitoring();
   const { qrCodeUrl, isGenerating: isGeneratingQR, generateQR, clearQR } = useQRGeneration({
     apiClient,
     kioskId: kioskId || 0,
     onPaymentDataGenerated: setPaymentData,
     onPaymentMonitoringStart: async (paymentId: string) => {
-      await startMonitoring(
+      // Stop any existing monitoring before starting new one
+      await stopMonitoring();
+      
+      const startTime = await startMonitoring(
         paymentId,
         sseConnected,
         (data) => { setPaymentData(data); goToConfirmation(data); },
         (data) => { setPaymentData(data); goToConfirmation(data); },
         (data) => { setPaymentData(data); goToConfirmation(data); }
       );
+      setMonitoringStartTime(startTime);
+      return startTime;
     }
   });
-  const { startMonitoring, stopMonitoring } = usePaymentMonitoring();
 
   // Products and cart
   const { 
@@ -121,6 +127,20 @@ export function KioskApp() {
         clearQR();
         setPaymentStep(1);
         setSelectedPaymentMethod(undefined);
+        return;
+      }
+      
+      // Handle payment check started (for timer synchronization)
+      if (message.type === 'product_update' && message.updateType === 'payment_check_started') {
+        const paymentId = message.data?.paymentId || '';
+        // Only handle FIO payments (not ThePay)
+        if (!paymentId.startsWith('thepay-') && paymentData && 'paymentId' in paymentData && paymentData.paymentId === paymentId) {
+          console.log('⏱️ Payment check started, resetting timer:', message);
+          // Trigger timer reset in QRDisplay via custom event
+          window.dispatchEvent(new CustomEvent('payment-check-started', {
+            detail: { paymentId, checkTime: message.data?.checkTime || Date.now() }
+          }));
+        }
         return;
       }
       
@@ -224,8 +244,9 @@ export function KioskApp() {
   }, [cart, isCartEmpty, generateQR, handleError, setPaymentStep]);
 
   // Cancel QR payment and go back to payment method selection
-  const handleCancelQRPayment = useCallback(() => {
-    stopMonitoring();
+  const handleCancelQRPayment = useCallback(async () => {
+    await stopMonitoring();
+    setMonitoringStartTime(null);
     clearQR();
     setPaymentStep(3);
     setSelectedPaymentMethod(undefined);
@@ -287,10 +308,10 @@ export function KioskApp() {
     handleError(new Error(error), 'KioskApp.ThePayPayment');
   }, [handleError]);
 
-  const handleThePayPaymentCancel = useCallback(() => {
+  const handleThePayPaymentCancel = useCallback(async () => {
     console.log('🚫 ThePay payment cancelled, going back to payment method selection');
     // Go back one step to payment method selection (step 3), same as QR payment
-    stopMonitoring();
+    await stopMonitoring();
     clearQR();
     setPaymentStep(3);
     setSelectedPaymentMethod(undefined);
@@ -357,6 +378,7 @@ export function KioskApp() {
           paymentData={paymentData}
           isGeneratingQR={isGeneratingQR}
           kioskId={kioskId || 0}
+          monitoringStartTime={monitoringStartTime}
           onEmailChange={setEmail}
           onPaymentMethodSelect={setSelectedPaymentMethod}
           onPaymentSubmit={handlePaymentSubmitCallback}

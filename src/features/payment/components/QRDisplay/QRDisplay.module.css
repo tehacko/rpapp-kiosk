@@ -101,6 +101,40 @@
   transform: translateX(3px);
 }
 
+.timerContainer {
+  margin-top: var(--spacing-4);
+  text-align: center;
+  width: 100%;
+}
+
+.timerText {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+  line-height: 1.3;
+}
+
+.checkingText {
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  line-height: 1.3;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 .instructions {
   font-size: 14px;
   color: var(--color-text-tertiary);

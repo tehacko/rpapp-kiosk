@@ -33,7 +33,7 @@ const mockAPIClient = {
 
 const mockCallbacks = {
   onPaymentDataGenerated: jest.fn() as jest.MockedFunction<(data: any) => void>,
-  onPaymentMonitoringStart: jest.fn() as jest.MockedFunction<(paymentId: string) => Promise<void>>,
+  onPaymentMonitoringStart: jest.fn() as jest.MockedFunction<(paymentId: string) => Promise<number | null>>,
   onPaymentComplete: jest.fn() as jest.MockedFunction<(data: any) => void>,
   onPaymentTimeout: jest.fn() as jest.MockedFunction<(data: any) => void>,
   onPaymentFailed: jest.fn() as jest.MockedFunction<(data: any) => void>,
@@ -83,7 +83,7 @@ describe('useQRGeneration', () => {
     };
 
     mockAPIClient.post.mockResolvedValue(mockResponse);
-    mockCallbacks.onPaymentMonitoringStart.mockResolvedValue(undefined);
+    mockCallbacks.onPaymentMonitoringStart.mockResolvedValue(null);
 
     const { result } = renderHook(() =>
       useQRGeneration({
@@ -208,7 +208,7 @@ describe('useQRGeneration', () => {
     };
 
     mockAPIClient.post.mockResolvedValue(mockResponse);
-    mockCallbacks.onPaymentMonitoringStart.mockResolvedValue(undefined);
+    mockCallbacks.onPaymentMonitoringStart.mockResolvedValue(null);
 
     const { result } = renderHook(() =>
       useQRGeneration({
