@@ -7,7 +7,6 @@ import {
   MultiProductPaymentData,
   TransactionStatus,
   ApiResponse,
-  PaymentStatusResponse,
   StartMonitoringResponse
 } from 'pi-kiosk-shared';
 
@@ -62,18 +61,49 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
           return;
         }
         
-        const response = await apiClient.get<ApiResponse<PaymentStatusResponse>>(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
-        if (response.success && response.data && response.data.status === TransactionStatus.COMPLETED) {
-          console.log('✅ Payment completed via polling fallback');
+        const response = await apiClient.get<any>(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
+        
+        // Backend returns: { success: true, status: TransactionStatus, transaction: {...}, ... }
+        // Frontend expects: { success: true, data: { status: TransactionStatus, ... } }
+        // Need to handle both structures for compatibility
+        const status = response.status || response.data?.status;
+        const isCompleted = status === TransactionStatus.COMPLETED || status === 'COMPLETED';
+        
+        // Debug logging to see what status we're receiving
+        if (pollCount === 1 || pollCount % 5 === 0) {
+          console.log(`🔍 [Poll #${pollCount}] Status check response:`, {
+            success: response.success,
+            status: status,
+            responseStatus: response.status,
+            dataStatus: response.data?.status,
+            expectedStatus: TransactionStatus.COMPLETED,
+            isCompleted: isCompleted,
+            fullResponse: response
+          });
+        }
+        
+        if (response.success && isCompleted) {
+          // Extract data from response (handle both response structures)
+          const transaction = response.transaction || response.data?.transaction;
+          const amount = transaction?.amount || response.data?.amount || response.amount || 0;
+          const customerEmail = response.customer?.email || response.data?.customerEmail || response.customerEmail || '';
+          const items = response.items || response.data?.items || [];
+          
+          console.log('✅ Payment completed via polling fallback', {
+            paymentId,
+            status: status,
+            amount: amount,
+            customerEmail: customerEmail
+          });
           clearInterval(interval);
           pollingIntervalRef.current = null;
           
           const paymentData: MultiProductPaymentData = {
             paymentId: paymentId,
-            totalAmount: response.data.amount || 0,
-            customerEmail: response.data.customerEmail || '',
+            totalAmount: amount,
+            customerEmail: customerEmail,
             qrCode: '', // PaymentStatusResponse doesn't include qrCode
-            items: [], // PaymentStatusResponse doesn't include items
+            items: items,
             status: TransactionStatus.COMPLETED
           };
           onPaymentComplete(paymentData);
@@ -111,33 +141,48 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
     try {
       console.log('🔍 Starting payment monitoring for QR payment:', paymentId);
       console.log('🔍 Endpoint:', API_ENDPOINTS.PAYMENT_START_MONITORING);
+      console.log('🔍 SSE connected:', sseConnected);
       
       currentPaymentId.current = paymentId;
       
-      // Check if SSE is connected
-      if (!sseConnected) {
-        console.warn('⚠️ SSE not connected, using polling fallback');
+      // BEST PRACTICE: Always call backend to start FIO polling, regardless of SSE connection
+      // Backend FIO polling is independent of frontend connection status
+      // SSE is only for real-time notifications, but backend should still check FIO for payments
+      try {
+        const response = await apiClient.post<ApiResponse<StartMonitoringResponse>>(API_ENDPOINTS.PAYMENT_START_MONITORING, {
+          paymentId: paymentId
+        });
+        
+        if (response.success && response.data) {
+          console.log('✅ Backend payment monitoring started successfully:', {
+            paymentId,
+            monitoringStartTime: response.data.monitoringStartTime,
+            sseConnected
+          });
+          
+          // If SSE is connected, payment completion will be handled via SSE in the onMessage callback
+          // If SSE is not connected, use polling fallback for status updates
+          if (!sseConnected) {
+            console.warn('⚠️ SSE not connected, using polling fallback for status updates');
+            startPollingFallback(paymentId, onPaymentComplete, onPaymentTimeout, onPaymentFailed);
+          }
+          
+          return response.data.monitoringStartTime || null;
+        } else {
+          throw new Error(response.message || 'Failed to start payment monitoring');
+        }
+      } catch (backendError) {
+        console.error('❌ Error starting backend payment monitoring:', backendError);
+        // Even if backend call fails, use polling fallback as last resort
+        console.warn('⚠️ Falling back to frontend-only polling (backend monitoring unavailable)');
         startPollingFallback(paymentId, onPaymentComplete, onPaymentTimeout, onPaymentFailed);
-        return null; // Fallback doesn't have a start time from backend
-      }
-      
-      // Start SSE-based payment monitoring
-      const response = await apiClient.post<ApiResponse<StartMonitoringResponse>>(API_ENDPOINTS.PAYMENT_START_MONITORING, {
-        paymentId: paymentId
-      });
-      
-      if (response.success && response.data) {
-        console.log('✅ Payment monitoring started successfully:', response);
-        // The payment completion will be handled via SSE in the onMessage callback
-        return response.data.monitoringStartTime || null;
-      } else {
-        throw new Error(response.message || 'Failed to start payment monitoring');
+        return null;
       }
     } catch (error) {
-      console.error('❌ Error starting payment monitoring, using fallback:', error);
-      // Fallback to polling if SSE monitoring fails
+      console.error('❌ Unexpected error in payment monitoring:', error);
+      // Last resort: use polling fallback
       startPollingFallback(paymentId, onPaymentComplete, onPaymentTimeout, onPaymentFailed);
-      return null; // Fallback doesn't have a start time from backend
+      return null;
     }
   }, [apiClient, handleError, startPollingFallback]);
 
