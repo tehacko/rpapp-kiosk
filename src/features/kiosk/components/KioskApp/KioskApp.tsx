@@ -1,4 +1,4 @@
-import { useCallback, useState, Suspense, lazy, startTransition, useEffect, useMemo } from 'react';
+import { useCallback, useState, Suspense, lazy, startTransition, useEffect } from 'react';
 import { 
   Cart as CartType,
   PaymentData, 
@@ -137,11 +137,6 @@ export function KioskApp() {
   } = useCart();
   
   const totalItems = cart.totalItems;
-
-  // Memoize cart total for expensive computation
-  const cartTotal = useMemo(() => {
-    return cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  }, [cart.items]);
 
   // SSE connection - memoize onMessage to prevent connection recreation
   const handleSSEMessage = useCallback((message: any) => {

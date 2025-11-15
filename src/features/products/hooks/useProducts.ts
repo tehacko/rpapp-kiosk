@@ -83,15 +83,17 @@ export function useProducts(options: UseProductsOptions = {}) {
     // Retry configuration
     retry: APP_CONFIG.RETRY_ATTEMPTS,
     retryDelay: APP_CONFIG.RETRY_DELAY,
-    // Error handling
-    onError: (error) => {
+  });
+
+  // Handle query state changes (React Query v5 doesn't support onError/onSuccess)
+  useEffect(() => {
+    if (error) {
       handleError(error as Error, 'useProducts.fetcher');
       setIsConnected(false);
-    },
-    onSuccess: () => {
+    } else if (products) {
       setIsConnected(true);
-    },
-  });
+    }
+  }, [error, products, handleError]);
 
   // Use refs to ensure we always have the latest values (prevents stale closures)
   const queryClientRef = useRef(queryClient);

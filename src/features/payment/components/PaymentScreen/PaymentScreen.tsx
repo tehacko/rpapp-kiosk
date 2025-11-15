@@ -1,4 +1,4 @@
-import React, { FC, Suspense, lazy } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Cart as CartType, PaymentData, MultiProductPaymentData, formatPrice } from 'pi-kiosk-shared';
 import { PaymentForm } from '../PaymentForm/PaymentForm';
 import styles from './PaymentScreen.module.css';
