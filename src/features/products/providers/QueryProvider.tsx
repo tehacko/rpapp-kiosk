@@ -18,8 +18,8 @@ function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // Stale time: consider data fresh for 5 seconds
-        staleTime: 5000,
+        // CRITICAL: Set to 0 for immediate real-time updates
+        staleTime: 0,
         // Cache time: keep unused data in cache for 5 minutes (formerly cacheTime)
         gcTime: 5 * 60 * 1000,
         // Retry configuration
@@ -29,10 +29,12 @@ function createQueryClient(): QueryClient {
         refetchOnWindowFocus: true,
         // Refetch on reconnect
         refetchOnReconnect: true,
-        // Refetch on mount if data is stale
-        refetchOnMount: true,
+        // Don't refetch on mount - SSE will trigger updates when needed
+        refetchOnMount: false,
         // Network mode: prefer online, fallback to cache
         networkMode: 'online',
+        // Disable structural sharing globally to force re-renders
+        structuralSharing: false,
       },
       mutations: {
         // Retry mutations once on failure

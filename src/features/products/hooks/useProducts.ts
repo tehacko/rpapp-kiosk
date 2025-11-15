@@ -44,7 +44,9 @@ export function useProducts(options: UseProductsOptions = {}) {
   const fetcher = useCallback(
     async (): Promise<KioskProduct[]> => {
       try {
-        const url = `${API_ENDPOINTS.PRODUCTS}?kioskId=${kioskId}`;
+        // Add timestamp to force cache bypass (prevent HTTP 304 Not Modified)
+        const timestamp = Date.now();
+        const url = `${API_ENDPOINTS.PRODUCTS}?kioskId=${kioskId}&_t=${timestamp}`;
         const response = await apiClient.get<
           ApiResponse<{ products: KioskProduct[] }>
         >(url);
@@ -78,11 +80,17 @@ export function useProducts(options: UseProductsOptions = {}) {
     queryFn: fetcher,
     // Revalidate every 30 seconds as fallback
     refetchInterval: APP_CONFIG.PRODUCT_CACHE_TTL / 10, // 30 seconds
-    // Stale time: consider data fresh for 5 seconds
-    staleTime: 5000,
+    // CRITICAL: Set to 0 for immediate real-time updates
+    staleTime: 0,
+    // Don't refetch on mount - SSE will trigger updates when needed
+    refetchOnMount: false,
+    // Refetch on window focus
+    refetchOnWindowFocus: true,
     // Retry configuration
     retry: APP_CONFIG.RETRY_ATTEMPTS,
     retryDelay: APP_CONFIG.RETRY_DELAY,
+    // Disable structural sharing to force re-renders on data change
+    structuralSharing: false,
   });
 
   // Handle query state changes (React Query v5 doesn't support onError/onSuccess)
@@ -94,6 +102,11 @@ export function useProducts(options: UseProductsOptions = {}) {
       setIsConnected(true);
     }
   }, [error, products, handleError]);
+
+  // Monitor SSE connection status for debugging
+  useEffect(() => {
+    console.log(`📡 SSE Connection Status: ${isConnected ? '✅ Connected' : '❌ Disconnected'}`);
+  }, [isConnected]);
 
   // Use refs to ensure we always have the latest values (prevents stale closures)
   const queryClientRef = useRef(queryClient);
@@ -188,43 +201,59 @@ export function useProducts(options: UseProductsOptions = {}) {
                   });
                 });
               } else {
-                // URGENT: Show product - force immediate refetch to get updated product list
+                // URGENT: Show product - force immediate refetch
                 console.log(`🔄 Product ${productId} should be shown, forcing immediate refetch...`);
-                // CRITICAL: Fetch fresh data and update cache immediately
-                // fetchQuery always fetches from server, bypassing cache and staleTime
-                // Then we explicitly set the query data to ensure React Query triggers a re-render
-                currentQueryClient.fetchQuery({
+                
+                // Cancel any in-flight requests to prevent race conditions
+                currentQueryClient.cancelQueries({
                   queryKey: currentCacheKey,
-                  queryFn: fetcherRef.current,
-                  staleTime: 0, // Ensure this fetch is never considered stale
-                }).then((freshProducts) => {
-                  // CRITICAL: Create a new array reference to ensure React Query detects the change
-                  // This prevents structural sharing from preventing re-renders
-                  const newProductsArray = [...freshProducts];
-                  
-                  // Explicitly set query data with a new reference to force re-render
-                  currentQueryClient.setQueryData(currentCacheKey, newProductsArray, {
-                    updatedAt: Date.now(), // Force update timestamp
+                });
+                
+                // Invalidate to mark data as stale
+                currentQueryClient.invalidateQueries({
+                  queryKey: currentCacheKey,
+                });
+                
+                // Force immediate refetch (don't wait for background)
+                const refetchPromise = currentQueryClient.refetchQueries({
+                  queryKey: currentCacheKey,
+                  type: 'active',
+                });
+                
+                console.log(`⏳ Refetch promise created for product ${productId}, waiting for result...`);
+                
+                refetchPromise.then((results) => {
+                  console.log(`📊 Refetch results for product ${productId}:`, {
+                    resultsLength: Array.isArray(results) ? results.length : 0,
+                    results: Array.isArray(results) ? results.map((r: any) => ({ 
+                      state: r.state.status, 
+                      dataLength: Array.isArray(r.state.data) ? r.state.data.length : 'not array',
+                      error: r.state.error 
+                    })) : []
                   });
                   
-                  // Also invalidate to ensure all observers are notified
-                  currentQueryClient.invalidateQueries({
-                    queryKey: currentCacheKey,
-                    refetchType: 'active',
-                  });
+                  const currentProducts = currentQueryClient.getQueryData<KioskProduct[]>(currentCacheKey);
+                  const hasProduct = currentProducts?.some(p => p.id === productId);
+                  console.log(`✅ Product ${productId} refetch completed. In list: ${hasProduct}, total: ${currentProducts?.length || 0}`);
                   
-                  console.log(`✅ Product ${productId} refetch completed, cache updated:`, {
-                    productCount: newProductsArray.length,
-                    hasProduct: newProductsArray.some(p => p.id === productId),
-                    productIds: newProductsArray.map(p => p.id)
-                  });
+                  if (!hasProduct) {
+                    console.warn(`⚠️ Product ${productId} still not in list after refetch! Retrying in 200ms...`);
+                    setTimeout(() => {
+                      currentQueryClient.refetchQueries({
+                        queryKey: currentCacheKey,
+                        type: 'active',
+                      });
+                    }, 200);
+                  }
                 }).catch((error) => {
                   console.error(`❌ Failed to refetch product ${productId}:`, error);
-                  // Fallback: try invalidate + refetch
-                  currentQueryClient.invalidateQueries({
-                    queryKey: currentCacheKey,
-                    refetchType: 'active',
-                  });
+                  // Retry once after 500ms
+                  setTimeout(() => {
+                    currentQueryClient.refetchQueries({
+                      queryKey: currentCacheKey,
+                      type: 'active',
+                    });
+                  }, 500);
                 });
               }
             } else {
