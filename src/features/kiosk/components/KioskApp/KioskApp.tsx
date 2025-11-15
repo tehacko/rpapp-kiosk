@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, Suspense, lazy, startTransition, useEffect, useMemo } from 'react';
 import { 
   Cart as CartType,
   PaymentData, 
@@ -20,11 +20,63 @@ import {
   usePaymentMonitoring 
 } from '../../../payment';
 
-import { ProductsScreen } from '../../../products/components/ProductsScreen';
-import { PaymentScreen } from '../../../payment/components/PaymentScreen';
-import { ConfirmationScreen } from '../../../payment/components/ConfirmationScreen/ConfirmationScreen';
-import { FullscreenButton } from '../../../../shared/components';
+import { FullscreenButton, ErrorBoundary } from '../../../../shared/components';
 import styles from './KioskApp.module.css';
+
+// Lazy load screen-level components (screen-level)
+const ProductsScreen = lazy(() =>
+  import('../../../products/components/ProductsScreen/ProductsScreen').then(module => ({
+    default: module.ProductsScreen,
+  }))
+);
+
+const PaymentScreen = lazy(() =>
+  import('../../../payment/components/PaymentScreen/PaymentScreen').then(module => ({
+    default: module.PaymentScreen,
+  }))
+);
+
+const ConfirmationScreen = lazy(() =>
+  import('../../../payment/components/ConfirmationScreen/ConfirmationScreen').then(module => ({
+    default: module.ConfirmationScreen,
+  }))
+);
+
+// Loading fallback component
+function LoadingSpinner({ message = 'Načítám...' }: { message?: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        gap: '1rem',
+      }}
+    >
+      <div
+        style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #3498db',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+        }}
+      />
+      <p>{message}</p>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
+  );
+}
 
 export function KioskApp() {
   // Kiosk configuration
@@ -53,9 +105,9 @@ export function KioskApp() {
       const startTime = await startMonitoring(
         paymentId,
         sseConnected,
-        (data) => { setPaymentData(data); goToConfirmation(data); },
-        (data) => { setPaymentData(data); goToConfirmation(data); },
-        (data) => { setPaymentData(data); goToConfirmation(data); }
+      (data) => { setPaymentData(data); startTransition(() => goToConfirmation(data)); },
+      (data) => { setPaymentData(data); startTransition(() => goToConfirmation(data)); },
+      (data) => { setPaymentData(data); startTransition(() => goToConfirmation(data)); }
       );
       setMonitoringStartTime(startTime);
       return startTime;
@@ -86,11 +138,13 @@ export function KioskApp() {
   
   const totalItems = cart.totalItems;
 
-  // SSE connection
-  const { isConnected: sseConnected } = useServerSentEvents({
-    kioskId: kioskId || 0,
-    enabled: kioskId !== null,
-    onMessage: (message: any) => {
+  // Memoize cart total for expensive computation
+  const cartTotal = useMemo(() => {
+    return cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [cart.items]);
+
+  // SSE connection - memoize onMessage to prevent connection recreation
+  const handleSSEMessage = useCallback((message: any) => {
       // Handle payment cancellation (fallback if ThePayPayment component misses it)
       if (message.type === 'product_update' && message.updateType === 'payment_cancelled') {
         const paymentId = message.data?.paymentId || '';
@@ -115,6 +169,7 @@ export function KioskApp() {
         }
         
         console.log('🎉 Payment completed!', message);
+        startTransition(() => {
         goToConfirmation({
           paymentId: message.data?.paymentId || 'unknown',
           amount: message.data?.amount || 0,
@@ -123,6 +178,7 @@ export function KioskApp() {
           qrCode: qrCodeUrl,
           items: cart.items || [],
           status: TransactionStatus.COMPLETED
+          });
         });
         clearQR();
         setPaymentStep(1);
@@ -147,6 +203,7 @@ export function KioskApp() {
       // Handle payment timeout
       if (message.type === 'product_update' && message.updateType === 'payment_timeout') {
         console.log('⏰ Payment monitoring timed out:', message);
+        startTransition(() => {
         goToConfirmation({
           paymentId: message.data?.paymentId || 'unknown',
           amount: message.data?.amount || 0,
@@ -155,6 +212,7 @@ export function KioskApp() {
           qrCode: qrCodeUrl,
           items: cart.items || [],
           status: TransactionStatus.TIMEOUT
+          });
         });
         clearQR();
         setPaymentStep(1);
@@ -165,6 +223,7 @@ export function KioskApp() {
       // Handle payment failure
       if (message.type === 'product_update' && message.updateType === 'payment_failed') {
         console.log('❌ Payment failed:', message);
+        startTransition(() => {
         goToConfirmation({
           paymentId: message.data?.paymentId || 'unknown',
           amount: message.data?.amount || 0,
@@ -173,6 +232,7 @@ export function KioskApp() {
           qrCode: qrCodeUrl,
           items: cart.items || [],
           status: TransactionStatus.FAILED
+          });
         });
         clearQR();
         setPaymentStep(1);
@@ -181,17 +241,38 @@ export function KioskApp() {
       }
       
       // Dispatch custom event for useProducts hook to handle
+      // Single dispatch - useProducts hook handles all product updates with optimistic updates
+      // Log inventory updates for debugging
+      if (message.type === 'product_update' && message.updateType === 'inventory_updated') {
+        console.log('📦 KioskApp: Dispatching inventory_updated event', {
+            productId: message.data?.productId,
+          kioskId: message.data?.kioskId,
+          active: message.data?.active,
+          visible: message.data?.visible
+        });
+      }
+      
       window.dispatchEvent(new CustomEvent('websocket-message', {
         detail: { data: JSON.stringify(message) }
       }));
-    },
-    onConnect: () => {
-      console.log('📡 SSE connected');
+  }, [kioskId, email, qrCodeUrl, cart.items, paymentData, goToConfirmation, clearQR, setPaymentStep, setSelectedPaymentMethod]);
+
+  const handleSSEConnect = useCallback(() => {
+    console.log('📡 SSE connected in KioskApp');
       setIsConnected(true);
-    },
-    onError: (error) => {
+  }, []);
+
+  const handleSSEError = useCallback((error: Error) => {
       console.warn('SSE error (non-blocking):', error);
-    }
+  }, []);
+
+  // SSE connection - use memoized callbacks
+  const { isConnected: sseConnected } = useServerSentEvents({
+    kioskId: kioskId || 0,
+    enabled: kioskId !== null,
+    onMessage: handleSSEMessage,
+    onConnect: handleSSEConnect,
+    onError: handleSSEError
   });
 
   // Product click tracking for analytics
@@ -214,7 +295,9 @@ export function KioskApp() {
 
   const handleProceedToCheckout = useCallback(() => {
     if (!isCartEmpty) {
+      startTransition(() => {
       goToPayment();
+      });
     }
   }, [isCartEmpty, goToPayment]);
 
@@ -289,7 +372,9 @@ export function KioskApp() {
     if (currentScreen === 'payment') {
       if (paymentStep === 1) {
         clearCart();
+        startTransition(() => {
         goToProducts();
+        });
         setPaymentStep(1);
       } else {
         setPaymentStep(paymentStep - 1);
@@ -300,7 +385,9 @@ export function KioskApp() {
   // ThePay payment handlers
   const handleThePayPaymentSuccess = useCallback((data: PaymentData | MultiProductPaymentData) => {
     console.log('ThePay payment successful:', data);
+    startTransition(() => {
     goToConfirmation(data);
+    });
   }, [goToConfirmation]);
 
   const handleThePayPaymentError = useCallback((error: string) => {
@@ -316,6 +403,38 @@ export function KioskApp() {
     setPaymentStep(3);
     setSelectedPaymentMethod(undefined);
   }, [stopMonitoring, clearQR, setPaymentStep, setSelectedPaymentMethod]);
+
+  // Preload likely next screens for better performance
+  useEffect(() => {
+    if (totalItems > 0 && currentScreen === 'products') {
+      // Preload PaymentScreen when user adds items to cart
+      import('../../../payment/components/PaymentScreen/PaymentScreen');
+      // Also preload QRDisplay and ThePayPayment components
+      import('../../../payment/components/QRDisplay/QRDisplay');
+      import('../../../payment/components/ThePayPayment/ThePayPayment');
+    }
+  }, [totalItems, currentScreen]);
+
+  // Preload confirmation when payment starts
+  useEffect(() => {
+    if (paymentStep === 5 && currentScreen === 'payment') {
+      import('../../../payment/components/ConfirmationScreen/ConfirmationScreen');
+    }
+  }, [paymentStep, currentScreen]);
+
+  // Preload QRDisplay when QR payment method is selected
+  useEffect(() => {
+    if (selectedPaymentMethod === 'qr' && currentScreen === 'payment' && paymentStep >= 3) {
+      import('../../../payment/components/QRDisplay/QRDisplay');
+    }
+  }, [selectedPaymentMethod, currentScreen, paymentStep]);
+
+  // Preload ThePayPayment when ThePay method is selected
+  useEffect(() => {
+    if (selectedPaymentMethod === 'thepay' && currentScreen === 'payment' && paymentStep >= 3) {
+      import('../../../payment/components/ThePayPayment/ThePayPayment');
+    }
+  }, [selectedPaymentMethod, currentScreen, paymentStep]);
 
   // Show error screen if kiosk ID is invalid
   if (!isValid || kioskError) {
@@ -350,6 +469,16 @@ export function KioskApp() {
     <div className={`${styles.kioskApp} ${styles.kioskMode}`}>
       {/* Products Screen */}
       {currentScreen === 'products' && (
+        <ErrorBoundary
+          fallback={
+            <div className={styles.errorScreen}>
+              <h2>❌ Chyba při načítání produktů</h2>
+              <p>Omlouváme se, došlo k chybě při načítání produktů.</p>
+              <button onClick={() => window.location.reload()}>Zkusit znovu</button>
+            </div>
+          }
+        >
+          <Suspense fallback={<LoadingSpinner message="Načítám produkty..." />}>
         <ProductsScreen
           products={products}
           onAddToCart={handleAddToCart}
@@ -364,10 +493,24 @@ export function KioskApp() {
           isConnected={isConnected}
           qrCodeUrl={qrCodeUrl}
         />
+          </Suspense>
+        </ErrorBoundary>
       )}
 
       {/* Payment Screen */}
       {currentScreen === 'payment' && !isCartEmpty && (
+        <ErrorBoundary
+          fallback={
+            <div className={styles.errorScreen}>
+              <h2>❌ Chyba při načítání platby</h2>
+              <p>Omlouváme se, došlo k chybě při načítání platební obrazovky.</p>
+              <button onClick={() => startTransition(() => goToProducts())}>
+                Zpět na produkty
+              </button>
+            </div>
+          }
+        >
+          <Suspense fallback={<LoadingSpinner message="Načítám platbu..." />}>
         <PaymentScreen
           cart={cart}
           isCartEmpty={isCartEmpty}
@@ -390,18 +533,40 @@ export function KioskApp() {
           onNext={handleNext}
           onStepChange={setPaymentStep}
         />
+          </Suspense>
+        </ErrorBoundary>
       )}
 
       {/* Confirmation Screen */}
       {currentScreen === 'confirmation' && paymentData && (
+        <ErrorBoundary
+          fallback={
+            <div className={styles.errorScreen}>
+              <h2>❌ Chyba při načítání potvrzení</h2>
+              <p>Omlouváme se, došlo k chybě při načítání potvrzovací obrazovky.</p>
+              <button
+                onClick={() => {
+                  startTransition(() => goToProducts());
+                  clearCart();
+                  resetPaymentState();
+                }}
+              >
+                Zpět na produkty
+              </button>
+            </div>
+          }
+        >
+          <Suspense fallback={<LoadingSpinner message="Načítám potvrzení..." />}>
         <ConfirmationScreen
           paymentData={paymentData}
           onContinue={() => {
-            goToProducts();
+                startTransition(() => goToProducts());
             clearCart();
             resetPaymentState();
           }}
         />
+          </Suspense>
+        </ErrorBoundary>
       )}
 
       {/* Fullscreen Button - Only show on kiosk screens */}

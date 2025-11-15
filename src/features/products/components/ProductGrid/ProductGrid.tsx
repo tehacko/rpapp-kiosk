@@ -1,4 +1,5 @@
 // React is not needed with new JSX transform
+import React, { useMemo, useCallback } from 'react';
 import { KioskProduct, UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 'pi-kiosk-shared';
 import styles from './ProductGrid.module.css';
 
@@ -11,19 +12,24 @@ interface ProductGridProps {
   onRetry: () => void;
 }
 
-export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading, error, onRetry }: ProductGridProps) {
+function ProductGridComponent({ products, onAddToCart, getItemQuantity, isLoading, error, onRetry }: ProductGridProps) {
   const { retryAction } = useErrorHandler();
 
-  const handleRetry = () => {
-    retryAction(onRetry);
-  };
+  // Memoize available products filter - use products directly for immediate updates
+  const availableProducts = useMemo(() => {
+    return products.filter(product => product.quantityInStock > 0);
+  }, [products]);
 
-  const handleAddToCart = (e: React.MouseEvent, product: KioskProduct) => {
+  const handleRetry = useCallback(() => {
+    retryAction(onRetry);
+  }, [retryAction, onRetry]);
+
+  const handleAddToCart = useCallback((e: React.MouseEvent, product: KioskProduct) => {
     e.preventDefault();
     e.stopPropagation();
     console.log('Adding product to cart:', product.name, 'Event:', e.type);
     onAddToCart(product);
-  };
+  }, [onAddToCart]);
 
   if (isLoading) {
     return (
@@ -61,42 +67,105 @@ export function ProductGrid({ products, onAddToCart, getItemQuantity, isLoading,
     );
   }
 
-  // Filter out products that are not available (quantity 0 or inactive)
-  const availableProducts = products.filter(product => product.quantityInStock > 0);
-
   return (
     <div className={`${styles.productsGrid} ${CSS_CLASSES.GRID}`} role="grid">
       {availableProducts.map((product) => (
-        <div 
-          key={product.id} 
-          className={`${styles.productCard} ${CSS_CLASSES.CARD}`}
-          role="gridcell"
-          tabIndex={-1}
-          aria-label={`${product.name} - ${formatPrice(product.price)}`}
-        >
-          
-          <div className={styles.productInfo}>
-            <h3 className={styles.productName}>{product.name}</h3>
-          </div>
-          
-          <div className={styles.productBottomSection}>
-            <button
-              onClick={(e) => handleAddToCart(e, product)}
-              className={styles.addToCartBtn}
-              title="Přidat do košíku"
-              type="button"
-            >
-              🛒 Přidat do košíku
-            </button>
-          </div>
-          
-          {getItemQuantity(product.id) > 0 && (
-            <div className={styles.cartQuantity}>
-              🛒 V košíku: {getItemQuantity(product.id)}
-            </div>
-          )}
-        </div>
+        <ProductCard
+          key={product.id}
+          product={product}
+          onAddToCart={handleAddToCart}
+          getItemQuantity={getItemQuantity}
+        />
       ))}
     </div>
   );
 }
+
+// Memoized ProductCard component
+interface ProductCardProps {
+  product: KioskProduct;
+  onAddToCart: (e: React.MouseEvent, product: KioskProduct) => void;
+  getItemQuantity: (productId: number) => number;
+}
+
+const ProductCard = React.memo<ProductCardProps>(
+  ({ product, onAddToCart, getItemQuantity }) => {
+    const quantity = useMemo(
+      () => getItemQuantity(product.id),
+      [getItemQuantity, product.id]
+    );
+
+    const handleClick = useCallback(
+      (e: React.MouseEvent) => {
+        onAddToCart(e, product);
+      },
+      [onAddToCart, product]
+    );
+
+    return (
+      <div
+        className={`${styles.productCard} ${CSS_CLASSES.CARD}`}
+        role="gridcell"
+        tabIndex={-1}
+        aria-label={`${product.name} - ${formatPrice(product.price)}`}
+      >
+        <div className={styles.productInfo}>
+          <h3 className={styles.productName}>{product.name}</h3>
+        </div>
+
+        <div className={styles.productBottomSection}>
+          <button
+            onClick={handleClick}
+            className={styles.addToCartBtn}
+            title="Přidat do košíku"
+            type="button"
+          >
+            🛒 Přidat do košíku
+          </button>
+        </div>
+
+        {quantity > 0 && (
+          <div className={styles.cartQuantity}>🛒 V košíku: {quantity}</div>
+        )}
+      </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison function for React.memo
+    return (
+      prevProps.product.id === nextProps.product.id &&
+      prevProps.product.quantityInStock === nextProps.product.quantityInStock &&
+      prevProps.getItemQuantity(prevProps.product.id) ===
+        nextProps.getItemQuantity(nextProps.product.id)
+    );
+  }
+);
+
+ProductCard.displayName = 'ProductCard';
+
+// Export memoized ProductGrid
+export const ProductGrid = React.memo(ProductGridComponent, (prevProps, nextProps) => {
+  // Custom comparison: re-render if products array changes (length or content)
+  // Check length first (fast), then reference equality
+  if (prevProps.products.length !== nextProps.products.length) {
+    return false; // Re-render if length changed
+  }
+  
+  // Check if any product IDs changed (more thorough than reference check)
+  const prevIds = prevProps.products.map(p => p.id).sort().join(',');
+  const nextIds = nextProps.products.map(p => p.id).sort().join(',');
+  if (prevIds !== nextIds) {
+    return false; // Re-render if product IDs changed
+  }
+  
+  // Only skip re-render if everything else is the same
+  return (
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.error === nextProps.error &&
+    prevProps.onAddToCart === nextProps.onAddToCart &&
+    prevProps.getItemQuantity === nextProps.getItemQuantity &&
+    prevProps.onRetry === nextProps.onRetry
+  );
+});
+
+ProductGrid.displayName = 'ProductGrid';

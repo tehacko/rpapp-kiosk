@@ -20,16 +20,17 @@
     "test:debug": "jest --config jest.config.cjs --testPathPattern=__tests__/unit --verbose"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
     "@types/qrcode": "^1.5.5",
     "pi-kiosk-shared": "^2.0.0",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.5",
-    "serve": "^14.2.1",
-    "swr": "^2.3.6"
+    "serve": "^14.2.1"
   },
   "devDependencies": {
+    "@tanstack/react-query-devtools": "^5.62.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.0.0",

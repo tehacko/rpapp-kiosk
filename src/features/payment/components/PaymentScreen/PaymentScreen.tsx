@@ -1,9 +1,53 @@
-import { FC } from 'react';
+import React, { FC, Suspense, lazy } from 'react';
 import { Cart as CartType, PaymentData, MultiProductPaymentData, formatPrice } from 'pi-kiosk-shared';
 import { PaymentForm } from '../PaymentForm/PaymentForm';
-import { QRDisplay } from '../QRDisplay/QRDisplay';
-import { ThePayPayment } from '../ThePayPayment/ThePayPayment';
 import styles from './PaymentScreen.module.css';
+
+// Lazy load heavy payment feature components
+const QRDisplay = lazy(() =>
+  import('../QRDisplay/QRDisplay').then(module => ({
+    default: module.QRDisplay,
+  }))
+);
+
+const ThePayPayment = lazy(() =>
+  import('../ThePayPayment/ThePayPayment').then(module => ({
+    default: module.ThePayPayment,
+  }))
+);
+
+// Loading fallback for payment components
+function PaymentComponentLoader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem',
+      }}
+    >
+      <div
+        style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid #f3f3f3',
+          borderTop: '3px solid #3498db',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+        }}
+      />
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
+  );
+}
 
 interface PaymentScreenProps {
   cart: CartType;
@@ -28,7 +72,7 @@ interface PaymentScreenProps {
   onStepChange: (step: number) => void;
 }
 
-export const PaymentScreen: FC<PaymentScreenProps> = ({
+function PaymentScreenComponent({
   cart,
   isCartEmpty,
   paymentStep,
@@ -49,8 +93,7 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
   onBack,
   onNext,
   onStepChange,
-}) => {
-
+}: PaymentScreenProps) {
   if (isCartEmpty) {
     return null; // Should not render if cart is empty
   }
@@ -76,6 +119,7 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
           )}
 
           {qrCodeUrl && paymentData && (
+            <Suspense fallback={<PaymentComponentLoader />}>
             <QRDisplay 
               qrCodeUrl={qrCodeUrl} 
               paymentData={paymentData} 
@@ -83,10 +127,12 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
               showTimer={selectedPaymentMethod === 'qr'} // Show timer only for FIO QR payments
               monitoringStartTime={monitoringStartTime} // Pass monitoring start time for synchronized timer
             />
+            </Suspense>
           )}
 
           {/* ThePay Payment Component */}
           {selectedPaymentMethod === 'thepay' && paymentStep === 5 && !qrCodeUrl && (
+            <Suspense fallback={<PaymentComponentLoader />}>
             <ThePayPayment
               cart={cart}
               email={email}
@@ -95,6 +141,7 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
               onPaymentError={onThePayPaymentError}
               onCancel={onThePayPaymentCancel}
             />
+            </Suspense>
           )}
         </div>
 
@@ -133,4 +180,33 @@ export const PaymentScreen: FC<PaymentScreenProps> = ({
       </div>
     </div>
   );
-};
+}
+
+// Export memoized PaymentScreen
+export const PaymentScreen = React.memo<PaymentScreenProps>(PaymentScreenComponent, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  return (
+    prevProps.cart === nextProps.cart &&
+    prevProps.isCartEmpty === nextProps.isCartEmpty &&
+    prevProps.paymentStep === nextProps.paymentStep &&
+    prevProps.email === nextProps.email &&
+    prevProps.selectedPaymentMethod === nextProps.selectedPaymentMethod &&
+    prevProps.qrCodeUrl === nextProps.qrCodeUrl &&
+    prevProps.paymentData === nextProps.paymentData &&
+    prevProps.isGeneratingQR === nextProps.isGeneratingQR &&
+    prevProps.kioskId === nextProps.kioskId &&
+    prevProps.monitoringStartTime === nextProps.monitoringStartTime &&
+    prevProps.onEmailChange === nextProps.onEmailChange &&
+    prevProps.onPaymentMethodSelect === nextProps.onPaymentMethodSelect &&
+    prevProps.onPaymentSubmit === nextProps.onPaymentSubmit &&
+    prevProps.onCancelQRPayment === nextProps.onCancelQRPayment &&
+    prevProps.onThePayPaymentSuccess === nextProps.onThePayPaymentSuccess &&
+    prevProps.onThePayPaymentError === nextProps.onThePayPaymentError &&
+    prevProps.onThePayPaymentCancel === nextProps.onThePayPaymentCancel &&
+    prevProps.onBack === nextProps.onBack &&
+    prevProps.onNext === nextProps.onNext &&
+    prevProps.onStepChange === nextProps.onStepChange
+  );
+});
+
+PaymentScreen.displayName = 'PaymentScreen';

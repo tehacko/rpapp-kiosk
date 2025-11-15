@@ -1,3 +1,4 @@
+import React, { useCallback } from 'react';
 import styles from './CartHeader.module.css';
 
 interface CartHeaderProps {
@@ -7,12 +8,20 @@ interface CartHeaderProps {
   onClear: () => void;
 }
 
-export function CartHeader({ 
+function CartHeaderComponent({ 
   isEmpty, 
   totalItems, 
   onCheckout, 
   onClear
 }: CartHeaderProps) {
+  const handleCheckout = useCallback(() => {
+    onCheckout();
+  }, [onCheckout]);
+
+  const handleClear = useCallback(() => {
+    onClear();
+  }, [onClear]);
+
   if (isEmpty) {
     return null;
   }
@@ -21,14 +30,14 @@ export function CartHeader({
     <div className={styles.cartHeader}>
       <div className={styles.cartButtonsHeader}>
         <button
-          onClick={onClear}
+          onClick={handleClear}
           className={styles.clearCartBtnHeader}
           type="button"
         >
           🛒 Vyprázdnit košík ({totalItems})
         </button>
         <button
-          onClick={onCheckout}
+          onClick={handleCheckout}
           className={styles.checkoutBtnHeader}
           type="button"
         >
@@ -38,3 +47,15 @@ export function CartHeader({
     </div>
   );
 }
+
+// Export memoized CartHeader
+export const CartHeader = React.memo(CartHeaderComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.isEmpty === nextProps.isEmpty &&
+    prevProps.totalItems === nextProps.totalItems &&
+    prevProps.onCheckout === nextProps.onCheckout &&
+    prevProps.onClear === nextProps.onClear
+  );
+});
+
+CartHeader.displayName = 'CartHeader';

@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { KioskProduct } from 'pi-kiosk-shared';
 import { ProductGrid } from '../ProductGrid';
 import { CartHeader } from '../../../cart/components/CartHeader';
@@ -18,7 +19,7 @@ interface ProductsScreenProps {
   qrCodeUrl?: string;
 }
 
-export function ProductsScreen({
+function ProductsScreenComponent({
   products,
   onAddToCart,
   getItemQuantity,
@@ -32,22 +33,30 @@ export function ProductsScreen({
   isConnected: _isConnected,
   qrCodeUrl
 }: ProductsScreenProps) {
+  // Memoize header content to prevent unnecessary re-renders
+  const headerContent = useMemo(() => {
+    if (!isCartEmpty && !qrCodeUrl) {
   return (
-    <div className={styles.productsScreen}>
-      <div className={styles.productsHeader}>
-        {!isCartEmpty && !qrCodeUrl ? (
           <CartHeader
             isEmpty={false} // CartHeader handles its own isEmpty logic
             totalItems={totalItems}
             onCheckout={onCheckout}
             onClear={onClearCart}
           />
-        ) : !qrCodeUrl ? (
+      );
+    } else if (!qrCodeUrl) {
+      return (
           <div className={styles.headerLeft}>
             <h2 className={styles.productSelectTitle}>Vyberte si produkt</h2>
           </div>
-        ) : null}
-      </div>
+      );
+    }
+    return null;
+  }, [isCartEmpty, qrCodeUrl, totalItems, onCheckout, onClearCart]);
+
+  return (
+    <div className={styles.productsScreen}>
+      <div className={styles.productsHeader}>{headerContent}</div>
 
       <ProductGrid
         products={products}
@@ -60,3 +69,24 @@ export function ProductsScreen({
     </div>
   );
 }
+
+// Export memoized ProductsScreen
+export const ProductsScreen = React.memo(ProductsScreenComponent, (prevProps, nextProps) => {
+  // Custom comparison function
+  return (
+    prevProps.products === nextProps.products &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.error === nextProps.error &&
+    prevProps.isCartEmpty === nextProps.isCartEmpty &&
+    prevProps.totalItems === nextProps.totalItems &&
+    prevProps.isConnected === nextProps.isConnected &&
+    prevProps.qrCodeUrl === nextProps.qrCodeUrl &&
+    prevProps.onAddToCart === nextProps.onAddToCart &&
+    prevProps.getItemQuantity === nextProps.getItemQuantity &&
+    prevProps.onRetry === nextProps.onRetry &&
+    prevProps.onCheckout === nextProps.onCheckout &&
+    prevProps.onClearCart === nextProps.onClearCart
+  );
+});
+
+ProductsScreen.displayName = 'ProductsScreen';
