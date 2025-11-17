@@ -22,7 +22,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
     "@types/qrcode": "^1.5.5",
-    "pi-kiosk-shared": "^2.0.0",
+    "pi-kiosk-shared": "^2.0.1",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -43,6 +43,6 @@
     "jest-environment-jsdom": "^29.5.0",
     "ts-jest": "^29.1.0",
     "typescript": "^5.8.3",
-    "vite": "^5.4.10"
+    "vite": "^5.4.21"
   }
 }

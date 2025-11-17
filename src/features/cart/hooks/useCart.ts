@@ -18,34 +18,22 @@ export const useCart = (): UseCartReturn => {
 
   const addItem = useCallback((product: Product, quantity: number = 1) => {
     setCart(prevCart => {
-      // Create a completely new cart object
-      const newCart = {
-        items: [...prevCart.items],
-        totalItems: prevCart.totalItems,
-        totalAmount: prevCart.totalAmount
-      };
-      
-      // Use the returned cart from addToCart
-      const updatedCart = addToCart(newCart, product, quantity);
-      
-      // Return the updated cart
-      return updatedCart;
+      // addToCart now returns a new immutable cart object
+      return addToCart(prevCart, product, quantity);
     });
   }, []);
 
   const removeItem = useCallback((productId: number) => {
     setCart(prevCart => {
-      const newCart = { ...prevCart };
-      const updatedCart = removeFromCart(newCart, productId);
-      return updatedCart;
+      // removeFromCart now returns a new immutable cart object
+      return removeFromCart(prevCart, productId);
     });
   }, []);
 
   const updateQuantity = useCallback((productId: number, quantity: number) => {
     setCart(prevCart => {
-      const newCart = { ...prevCart };
-      const updatedCart = updateCartItemQuantity(newCart, productId, quantity);
-      return updatedCart;
+      // updateCartItemQuantity now returns a new immutable cart object
+      return updateCartItemQuantity(prevCart, productId, quantity);
     });
   }, []);
 
