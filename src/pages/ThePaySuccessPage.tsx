@@ -37,22 +37,31 @@ export function ThePaySuccessPage() {
 
   // Notify backend to broadcast cancellation when detected
   useEffect(() => {
-    if (status === 'cancelled' && paymentId && kioskId) {
+    // Read fresh values from URL to prevent stale closures
+    const currentPaymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
+    const currentKioskId = searchParams.get('kioskId');
+    
+    if (status === 'cancelled' && currentPaymentId && currentKioskId) {
       console.log('📡 Detected cancellation, notifying backend to broadcast to kiosk');
       const apiClient = createAPIClient();
       apiClient.post('/api/payments/thepay-notify-cancellation', {
-        paymentId,
-        kioskId
+        paymentId: currentPaymentId,
+        kioskId: currentKioskId
       }).then(() => {
         console.log('✅ Cancellation broadcast notification sent');
       }).catch(err => {
         console.error('❌ Failed to notify cancellation:', err);
       });
     }
-  }, [status, paymentId, kioskId]);
+  }, [status, searchParams]);
 
   useEffect(() => {
-    if (!paymentId || !kioskId) {
+    // Read fresh values from URL on each effect run to prevent stale closures
+    // This ensures we always have the current URL values, not stale component-level values
+    const currentPaymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
+    const currentKioskId = searchParams.get('kioskId');
+    
+    if (!currentPaymentId || !currentKioskId) {
       setStatus('failed');
       return;
     }
@@ -68,14 +77,15 @@ export function ThePaySuccessPage() {
 
     const checkPayment = async () => {
       // Guard: Ensure paymentId is available before making API call
-      // Construct endpoint inside function to use current paymentId value
-      if (!paymentId) {
+      // Use currentPaymentId from closure (fresh from searchParams)
+      if (!currentPaymentId) {
         console.error('❌ paymentId is null, cannot check payment status');
         setStatus('failed');
         return true; // Stop polling
       }
       
-      const statusEndpoint = API_ENDPOINTS.PAYMENT_THEPAY_STATUS.replace(':paymentId', paymentId);
+      // Construct endpoint using fresh currentPaymentId value
+      const statusEndpoint = API_ENDPOINTS.PAYMENT_THEPAY_STATUS.replace(':paymentId', currentPaymentId);
       
       try {
         pollCount++;
@@ -109,7 +119,7 @@ export function ThePaySuccessPage() {
         
         // NEW: Detect abandonment - if user redirected from ThePay and payment is still pending on first check,
         // they clicked "návrat na web" and abandoned the payment
-        if (pollCount === 1 && response.success && paymentStatus === 'pending' && paymentId && kioskId) {
+        if (pollCount === 1 && response.success && paymentStatus === 'pending' && currentPaymentId && currentKioskId) {
           console.log('🚫 Payment abandoned - user redirected from ThePay but payment still pending, treating as cancelled');
           // Mark as cancelled and notify backend to broadcast
           setStatus('cancelled');
@@ -168,10 +178,13 @@ export function ThePaySuccessPage() {
       // Cleanup interval on unmount
       return () => clearInterval(pollInterval);
     });
-  }, [paymentId, kioskId, status]);
+  }, [searchParams, status]); // Use searchParams instead of derived values to prevent stale closures
 
   // Handle countdown and redirect after status is set (60 seconds)
   useEffect(() => {
+    // Read fresh kioskId from URL to prevent stale closures
+    const currentKioskId = searchParams.get('kioskId');
+    
     if (status === 'success' || status === 'failed' || status === 'cancelled') {
       console.log(`⏱️ Starting 60s redirect timer, status: ${status}`);
       setCountdown(60);
@@ -187,7 +200,7 @@ export function ThePaySuccessPage() {
       
       const redirectTimer = setTimeout(() => {
         console.log('🔄 Auto-redirecting to kiosk home');
-        navigate(`/?kioskId=${kioskId}`);
+        navigate(`/?kioskId=${currentKioskId || ''}`);
       }, 60000);
       
       return () => {
@@ -197,21 +210,27 @@ export function ThePaySuccessPage() {
     } else {
       setCountdown(null);
     }
-  }, [status, kioskId, navigate]);
+  }, [status, searchParams, navigate]);
 
   const handleReturnToKiosk = () => {
     console.log('👤 User clicked return to kiosk button');
-    navigate(`/?kioskId=${kioskId}`);
+    // Read fresh kioskId from URL to prevent stale closures
+    const currentKioskId = searchParams.get('kioskId');
+    navigate(`/?kioskId=${currentKioskId || ''}`);
   };
 
   const handleManualCancel = async () => {
     console.log('👤 User manually cancelled payment check');
     
+    // Read fresh values from URL to prevent stale closures
+    const currentPaymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
+    const currentKioskId = searchParams.get('kioskId');
+    
     // Call backend to mark transaction as CANCELLED
-    if (paymentId) {
+    if (currentPaymentId) {
       try {
         const apiClient = createAPIClient();
-        await apiClient.post(API_ENDPOINTS.PAYMENT_THEPAY_CANCEL, { paymentId });
+        await apiClient.post(API_ENDPOINTS.PAYMENT_THEPAY_CANCEL, { paymentId: currentPaymentId });
         console.log('✅ Transaction marked as CANCELLED');
       } catch (error) {
         console.error('❌ Error cancelling transaction:', error);
@@ -219,7 +238,7 @@ export function ThePaySuccessPage() {
       }
     }
     
-    navigate(`/?kioskId=${kioskId}`);
+    navigate(`/?kioskId=${currentKioskId || ''}`);
   };
 
   // Show checking state with cancel button
