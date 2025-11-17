@@ -9,19 +9,18 @@ export function ThePaySuccessPage() {
   const [status, setStatus] = useState<'checking' | 'success' | 'failed' | 'cancelled'>('checking');
   const [countdown, setCountdown] = useState<number | null>(null);
   
-  // ThePay uses 'payment_uid' in return URL, but our system uses 'paymentId'
-  const paymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
-  const kioskId = searchParams.get('kioskId');
-  
   // Check URL params for cancellation indicators (e.g., if ThePay sends cancellation info)
   const urlStatus = searchParams.get('status');
   const cancelledParam = searchParams.get('cancelled');
 
   // Log only once on mount
   useEffect(() => {
+    // Read fresh values from URL to prevent stale closures
+    const currentPaymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
+    const currentKioskId = searchParams.get('kioskId');
     console.log('🎯 ThePaySuccessPage loaded:', { 
-      paymentId, 
-      kioskId, 
+      paymentId: currentPaymentId, 
+      kioskId: currentKioskId, 
       allParams: Object.fromEntries(searchParams.entries())
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
