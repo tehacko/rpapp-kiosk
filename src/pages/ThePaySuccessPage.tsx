@@ -63,11 +63,20 @@ export function ThePaySuccessPage() {
     }
 
     const apiClient = createAPIClient();
-    const statusEndpoint = API_ENDPOINTS.PAYMENT_THEPAY_STATUS.replace(':paymentId', paymentId);
     let pollCount = 0;
     const maxPolls = 20; // Poll for up to 60 seconds (20 * 3s)
 
     const checkPayment = async () => {
+      // Guard: Ensure paymentId is available before making API call
+      // Construct endpoint inside function to use current paymentId value
+      if (!paymentId) {
+        console.error('❌ paymentId is null, cannot check payment status');
+        setStatus('failed');
+        return true; // Stop polling
+      }
+      
+      const statusEndpoint = API_ENDPOINTS.PAYMENT_THEPAY_STATUS.replace(':paymentId', paymentId);
+      
       try {
         pollCount++;
         console.log(`📡 Checking payment status (attempt ${pollCount}/${maxPolls}):`, statusEndpoint);
