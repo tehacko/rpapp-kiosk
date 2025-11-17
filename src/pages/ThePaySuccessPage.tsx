@@ -17,12 +17,15 @@ export function ThePaySuccessPage() {
   const urlStatus = searchParams.get('status');
   const cancelledParam = searchParams.get('cancelled');
 
-  console.log('🎯 ThePaySuccessPage loaded:', { 
-    paymentId, 
-    kioskId, 
-    status,
-    allParams: Object.fromEntries(searchParams.entries())
-  });
+  // Log only once on mount
+  useEffect(() => {
+    console.log('🎯 ThePaySuccessPage loaded:', { 
+      paymentId, 
+      kioskId, 
+      allParams: Object.fromEntries(searchParams.entries())
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Check URL params for cancellation on initial load
   useEffect(() => {
