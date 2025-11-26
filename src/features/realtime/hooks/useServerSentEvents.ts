@@ -186,7 +186,20 @@ export function useServerSentEvents({
             processQueue();
           }
 
-          const message: SSEMessage = JSON.parse(event.data);
+          // SAFETY: Validate JSON before parsing
+          let message: SSEMessage;
+          try {
+            message = JSON.parse(event.data);
+          } catch (parseError) {
+            console.error('❌ Invalid SSE message format:', event.data);
+            return; // Don't crash, just ignore malformed messages
+          }
+
+          // SAFETY: Validate message structure
+          if (!message || typeof message !== 'object' || !message.type) {
+            console.error('❌ Invalid SSE message structure:', message);
+            return;
+          }
           
           // Handle ping responses
           if (message.type === 'ping') {
@@ -215,7 +228,7 @@ export function useServerSentEvents({
             enqueueMessage(message);
           }
         } catch (error) {
-          console.error('❌ Error parsing SSE message:', error, 'Raw data:', event.data);
+          console.error('❌ Error processing SSE message:', error, 'Raw data:', event.data);
           handleError(error as Error, 'useSSE.onmessage');
         }
       };
