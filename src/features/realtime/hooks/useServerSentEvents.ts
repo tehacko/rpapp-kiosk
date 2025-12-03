@@ -25,6 +25,7 @@ export interface UseSSEReturn {
   canSendMessage: boolean;
   reconnectAttempts: number;
   maxReconnectAttempts: number;
+  circuitBreakerOpen: boolean;
   connect: () => void;
   disconnect: () => void;
   reconnect: () => void;
@@ -42,12 +43,36 @@ export function useServerSentEvents({
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [circuitBreakerOpen, setCircuitBreakerOpen] = useState(false);
   
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const healthCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const healthCheckScheduleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shouldReconnectRef = useRef(true);
   const isConnectingRef = useRef(false);
+  const failureCountRef = useRef(0);
+  const lastFailureTimeRef = useRef<number | null>(null);
+  const circuitBreakerOpenRef = useRef(false);
+  const enabledRef = useRef(enabled);
+  const isConnectedRef = useRef(false);
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const healthCheckAttemptsRef = useRef(0);
+  const healthCheckCurrentIntervalRef = useRef<number | null>(null);
+  const healthCheckStartTimeRef = useRef<number | null>(null);
   const { handleError } = useErrorHandler();
+
+  // Exponential backoff constants
+  const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+  const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+  const BACKOFF_MULTIPLIER = 2;
+  const CIRCUIT_BREAKER_THRESHOLD = 5;
+
+  // Calculate reconnect delay with exponential backoff and max cap
+  const calculateReconnectDelay = useCallback((attempt: number): number => {
+    const exponentialDelay = INITIAL_RECONNECT_DELAY * Math.pow(BACKOFF_MULTIPLIER, attempt);
+    return Math.min(exponentialDelay, MAX_RECONNECT_DELAY);
+  }, []);
 
   // Message queue for offline scenarios
   const { enqueue: enqueueMessage, processQueue } = useMessageQueue({
@@ -66,6 +91,18 @@ export function useServerSentEvents({
     () => `${config.apiUrl}${API_ENDPOINTS.EVENTS.replace(':kioskId', kioskId.toString())}`,
     [config.apiUrl, kioskId]
   );
+  // Get health check configuration from config
+  const HEALTH_CHECK_INITIAL_INTERVAL = config.sseHealthCheckInitialInterval;
+  const HEALTH_CHECK_BACKOFF_MULTIPLIER = config.sseHealthCheckBackoffMultiplier;
+  const HEALTH_CHECK_MAX_INTERVAL = config.sseHealthCheckMaxInterval;
+  const HEALTH_CHECK_MAX_ATTEMPTS = config.sseHealthCheckMaxAttempts;
+  const HEALTH_CHECK_MAX_TOTAL_TIME = config.sseHealthCheckMaxTotalTime;
+  
+  // Calculate health check interval with exponential backoff
+  const calculateHealthCheckInterval = useCallback((attempt: number): number => {
+    const exponentialInterval = HEALTH_CHECK_INITIAL_INTERVAL * Math.pow(HEALTH_CHECK_BACKOFF_MULTIPLIER, attempt);
+    return Math.min(exponentialInterval, HEALTH_CHECK_MAX_INTERVAL);
+  }, [HEALTH_CHECK_INITIAL_INTERVAL, HEALTH_CHECK_BACKOFF_MULTIPLIER, HEALTH_CHECK_MAX_INTERVAL]);
   
   // Debug logging (only log when URL actually changes)
   useEffect(() => {
@@ -87,6 +124,19 @@ export function useServerSentEvents({
     onConnectRef.current = onConnect;
     onErrorRef.current = onError;
   }, [onMessage, onConnect, onError]);
+
+  // Update refs when state changes (for callbacks that need current values)
+  useEffect(() => {
+    circuitBreakerOpenRef.current = circuitBreakerOpen;
+  }, [circuitBreakerOpen]);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
 
   const connect = useCallback(() => {
     if (!enabled) {
@@ -127,21 +177,29 @@ export function useServerSentEvents({
       const initialReadyState = eventSourceRef.current.readyState;
       console.log(`📊 EventSource created, initial readyState: ${initialReadyState} (0=CONNECTING, 1=OPEN, 2=CLOSED)`);
 
+      // Clear any existing connection timeout
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+
       // Set up connection timeout check - increased to 10 seconds to allow for slow connections
-      const connectionTimeout = setTimeout(() => {
-        if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.OPEN && !isConnected) {
+      connectionTimeoutRef.current = setTimeout(() => {
+        // Use ref to check current state (avoids stale closure)
+        if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.OPEN && !isConnectedRef.current) {
           isConnectingRef.current = false;
           console.error('⏰ SSE connection timeout - readyState still not OPEN after 10 seconds:', {
             readyState: eventSourceRef.current.readyState,
             readyStateText: eventSourceRef.current.readyState === 0 ? 'CONNECTING' : eventSourceRef.current.readyState === 1 ? 'OPEN' : 'CLOSED',
             url: sseUrl,
-            isConnected
+            isConnected: isConnectedRef.current
           });
           // Don't close immediately - wait a bit more in case onmessage fires
           // The connection might still work even if onopen doesn't fire
           console.warn('⚠️ Waiting 2 more seconds for first message before closing...');
           setTimeout(() => {
-            if (!isConnected && eventSourceRef.current) {
+            // Use ref to check current state (avoids stale closure)
+            if (!isConnectedRef.current && eventSourceRef.current) {
               console.error('❌ Closing SSE connection after extended timeout');
               eventSourceRef.current.close();
               eventSourceRef.current = null;
@@ -155,7 +213,10 @@ export function useServerSentEvents({
       }, 10000); // Increased to 10 seconds
 
       eventSourceRef.current.onopen = () => {
-        clearTimeout(connectionTimeout);
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
         isConnectingRef.current = false;
         console.log('✅ 📡 SSE CONNECTED successfully!', {
           url: sseUrl,
@@ -165,6 +226,19 @@ export function useServerSentEvents({
         setIsConnected(true);
         setConnectionError(null);
         setReconnectAttempts(0);
+        // Reset circuit breaker on successful connection
+        setCircuitBreakerOpen(false);
+        failureCountRef.current = 0;
+        lastFailureTimeRef.current = null;
+        // Reset health check state on successful connection
+        healthCheckAttemptsRef.current = 0;
+        healthCheckCurrentIntervalRef.current = null;
+        healthCheckStartTimeRef.current = null;
+        // Clear any pending health check schedule timeout
+        if (healthCheckScheduleTimeoutRef.current) {
+          clearTimeout(healthCheckScheduleTimeoutRef.current);
+          healthCheckScheduleTimeoutRef.current = null;
+        }
         onConnectRef.current?.();
         // Process any queued messages now that we're connected
         processQueue();
@@ -174,13 +248,29 @@ export function useServerSentEvents({
         try {
           // CRITICAL: If we receive ANY message, the connection is definitely open
           // Some browsers don't fire onopen reliably, so treat first message as connection
-          if (!isConnected) {
-            clearTimeout(connectionTimeout);
+          if (!isConnectedRef.current) {
+            if (connectionTimeoutRef.current) {
+              clearTimeout(connectionTimeoutRef.current);
+              connectionTimeoutRef.current = null;
+            }
             isConnectingRef.current = false;
             console.log('✅ SSE connection confirmed by receiving first message (onopen may not have fired)');
             setIsConnected(true);
             setConnectionError(null);
             setReconnectAttempts(0);
+            // Reset circuit breaker on successful connection
+            setCircuitBreakerOpen(false);
+            failureCountRef.current = 0;
+            lastFailureTimeRef.current = null;
+            // Reset health check state on successful connection
+            healthCheckAttemptsRef.current = 0;
+            healthCheckCurrentIntervalRef.current = null;
+            healthCheckStartTimeRef.current = null;
+            // Clear any pending health check schedule timeout
+            if (healthCheckScheduleTimeoutRef.current) {
+              clearTimeout(healthCheckScheduleTimeoutRef.current);
+              healthCheckScheduleTimeoutRef.current = null;
+            }
             onConnectRef.current?.();
             // Process any queued messages now that we're connected
             processQueue();
@@ -245,17 +335,48 @@ export function useServerSentEvents({
           timestamp: new Date().toISOString()
         });
         
-        clearTimeout(connectionTimeout);
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
         
         // If connection is closed, it means connection failed
         if (readyState === EventSource.CLOSED) {
           isConnectingRef.current = false;
           const error = new NetworkError('SSE connection closed/failed');
           console.error('❌ SSE connection failed - readyState is CLOSED');
-        setConnectionError(error.message);
+          setConnectionError(error.message);
           setIsConnected(false);
-        handleError(error, 'useSSE.onerror');
+          handleError(error, 'useSSE.onerror');
           onErrorRef.current?.(error);
+
+          // Circuit breaker and exponential backoff logic
+          failureCountRef.current += 1;
+          lastFailureTimeRef.current = Date.now();
+
+          if (failureCountRef.current >= CIRCUIT_BREAKER_THRESHOLD) {
+            setCircuitBreakerOpen(true);
+            console.warn(`🔴 Circuit breaker opened after ${failureCountRef.current} failures - stopping reconnection attempts`);
+            // Start periodic health checks when circuit breaker opens
+            // Note: This will be handled by the useEffect that watches circuitBreakerOpen
+            return; // Don't attempt reconnection
+          }
+
+          // Check if we should attempt reconnection
+          if (shouldReconnectRef.current && reconnectAttempts < maxReconnectAttempts) {
+            const delay = calculateReconnectDelay(reconnectAttempts);
+            console.log(`⏳ Scheduling reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts} in ${delay}ms`);
+            
+            reconnectTimeoutRef.current = setTimeout(() => {
+              // Use ref to check current state (avoids stale closure)
+              if (shouldReconnectRef.current && !circuitBreakerOpenRef.current) {
+                setReconnectAttempts(prev => prev + 1);
+                connect();
+              }
+            }, delay);
+          } else {
+            console.warn('⚠️ Max reconnection attempts reached or reconnection disabled');
+          }
         } else if (readyState === EventSource.CONNECTING) {
           // Still connecting - this might be a temporary error
           console.warn('⚠️ SSE error while CONNECTING - may retry');
@@ -264,11 +385,27 @@ export function useServerSentEvents({
 
     } catch (error) {
       console.error('❌ Failed to create EventSource:', error);
+      isConnectingRef.current = false; // Reset connecting state to prevent stuck state
       const networkError = new NetworkError('Nepodařilo se vytvořit SSE připojení');
       setConnectionError(networkError.message);
       handleError(networkError, 'useSSE.connect');
     }
-  }, [enabled, sseUrl, handleError]);
+  }, [enabled, sseUrl, handleError, processQueue]);
+
+  // Stop health check interval (works with both setTimeout and setInterval)
+  const stopHealthCheckInterval = useCallback(() => {
+    if (healthCheckIntervalRef.current) {
+      clearTimeout(healthCheckIntervalRef.current);
+      healthCheckIntervalRef.current = null;
+    }
+    if (healthCheckScheduleTimeoutRef.current) {
+      clearTimeout(healthCheckScheduleTimeoutRef.current);
+      healthCheckScheduleTimeoutRef.current = null;
+    }
+    // Reset timer when stopping health checks
+    healthCheckStartTimeRef.current = null;
+    console.log('🛑 Stopped periodic health checks');
+  }, []);
 
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false;
@@ -279,6 +416,13 @@ export function useServerSentEvents({
       reconnectTimeoutRef.current = null;
     }
     
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
+    
+    stopHealthCheckInterval();
+    
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
@@ -286,7 +430,7 @@ export function useServerSentEvents({
     
     setIsConnected(false);
     setConnectionError(null);
-  }, []);
+  }, [stopHealthCheckInterval]);
 
   const reconnect = useCallback(() => {
     disconnect();
@@ -301,6 +445,134 @@ export function useServerSentEvents({
     console.warn('SSE does not support sending messages to server');
     return false;
   }, []);
+
+  // Periodic health check when circuit breaker is open with exponential backoff
+  const startHealthCheckInterval = useCallback(() => {
+    // Clear any existing health check interval
+    stopHealthCheckInterval();
+
+    // Only start if circuit breaker is open and enabled
+    // Check state directly here (ref will be updated by useEffect)
+    if (!circuitBreakerOpen || !enabled || !shouldReconnectRef.current) {
+      return;
+    }
+
+    // Record start time when circuit breaker opens
+    if (healthCheckStartTimeRef.current === null) {
+      healthCheckStartTimeRef.current = Date.now();
+      const maxHours = HEALTH_CHECK_MAX_TOTAL_TIME / (60 * 60 * 1000);
+      console.log(`⏱️ Health check timer started - will stop after ${maxHours} hours total`);
+    }
+
+    // Reset health check attempts when starting (circuit breaker just opened)
+    healthCheckAttemptsRef.current = 0;
+    healthCheckCurrentIntervalRef.current = null;
+
+    // Recursive function to schedule health checks with exponential backoff
+    const scheduleNextHealthCheck = () => {
+      // Check if we've exceeded max attempts
+      if (healthCheckAttemptsRef.current >= HEALTH_CHECK_MAX_ATTEMPTS) {
+        console.error(`🛑 Hard stop: Maximum health check attempts (${HEALTH_CHECK_MAX_ATTEMPTS}) reached - stopping all reconnection attempts`);
+        shouldReconnectRef.current = false;
+        stopHealthCheckInterval();
+        healthCheckStartTimeRef.current = null;
+        return;
+      }
+
+      // Check if we've exceeded maximum total time
+      if (healthCheckStartTimeRef.current !== null) {
+        const elapsedTime = Date.now() - healthCheckStartTimeRef.current;
+        if (elapsedTime >= HEALTH_CHECK_MAX_TOTAL_TIME) {
+          const elapsedHours = (elapsedTime / (60 * 60 * 1000)).toFixed(1);
+          const maxHours = (HEALTH_CHECK_MAX_TOTAL_TIME / (60 * 60 * 1000)).toFixed(1);
+          console.error(`🛑 Hard stop: Maximum total health check time (${maxHours} hours) reached after ${elapsedHours}h - stopping all reconnection attempts to preserve battery`);
+          shouldReconnectRef.current = false;
+          stopHealthCheckInterval();
+          healthCheckStartTimeRef.current = null;
+          return;
+        }
+      }
+
+      // Check if circuit breaker is still open (might have been reset by successful connection)
+      if (!circuitBreakerOpenRef.current || !enabledRef.current || !shouldReconnectRef.current) {
+        stopHealthCheckInterval();
+        healthCheckStartTimeRef.current = null;
+        return;
+      }
+
+      // Calculate interval with exponential backoff based on current attempt count
+      const currentInterval = calculateHealthCheckInterval(healthCheckAttemptsRef.current);
+      healthCheckCurrentIntervalRef.current = currentInterval;
+
+      const intervalSeconds = currentInterval / 1000;
+      const maxIntervalMinutes = HEALTH_CHECK_MAX_INTERVAL / 60000;
+      const elapsedTime = healthCheckStartTimeRef.current !== null 
+        ? Date.now() - healthCheckStartTimeRef.current 
+        : 0;
+      const elapsedMinutes = Math.floor(elapsedTime / 60000);
+      const remainingTime = HEALTH_CHECK_MAX_TOTAL_TIME - elapsedTime;
+      const remainingMinutes = Math.floor(remainingTime / 60000);
+      
+      console.log(`🏥 Scheduling health check ${healthCheckAttemptsRef.current + 1}/${HEALTH_CHECK_MAX_ATTEMPTS} in ${intervalSeconds}s (max interval: ${maxIntervalMinutes}min, elapsed: ${elapsedMinutes}min, remaining: ${remainingMinutes}min)`);
+
+      // Use setTimeout instead of setInterval to allow dynamic interval changes
+      healthCheckIntervalRef.current = setTimeout(() => {
+        // Check again before attempting (state might have changed)
+        if (!circuitBreakerOpenRef.current || !enabledRef.current || !shouldReconnectRef.current) {
+          stopHealthCheckInterval();
+          healthCheckStartTimeRef.current = null;
+          return;
+        }
+
+        // Increment attempt counter before attempting
+        healthCheckAttemptsRef.current += 1;
+
+        // Attempt a health check connection
+        console.log(`🏥 Performing health check attempt ${healthCheckAttemptsRef.current}/${HEALTH_CHECK_MAX_ATTEMPTS}...`);
+        
+        // Call connect() - if successful, onopen handler will reset circuit breaker and health check state
+        // If it fails, onerror will handle it, and we'll schedule the next check with increased interval
+        connect();
+
+        // Clear any existing schedule timeout before creating a new one
+        if (healthCheckScheduleTimeoutRef.current) {
+          clearTimeout(healthCheckScheduleTimeoutRef.current);
+          healthCheckScheduleTimeoutRef.current = null;
+        }
+
+        // Schedule next health check after a short delay to allow connection attempt to complete
+        // If connection succeeds, circuit breaker will be closed and we won't schedule another check
+        // If connection fails, we'll continue with the next attempt
+        healthCheckScheduleTimeoutRef.current = setTimeout(() => {
+          // Clear the ref since timeout has fired
+          healthCheckScheduleTimeoutRef.current = null;
+          // Only schedule next check if circuit breaker is still open (connection failed)
+          if (circuitBreakerOpenRef.current && enabledRef.current && shouldReconnectRef.current) {
+            scheduleNextHealthCheck();
+          }
+        }, 2000); // Wait 2 seconds for connection attempt to complete/fail
+      }, currentInterval);
+    };
+
+    // Start the first health check immediately (or with initial interval)
+    scheduleNextHealthCheck();
+  }, [circuitBreakerOpen, enabled, connect, stopHealthCheckInterval, calculateHealthCheckInterval, HEALTH_CHECK_MAX_ATTEMPTS, HEALTH_CHECK_MAX_INTERVAL, HEALTH_CHECK_MAX_TOTAL_TIME]);
+
+  // Effect to manage health check interval based on circuit breaker state
+  // NOTE: Removed automatic circuit breaker reset effect - health checks handle recovery
+  // When backend comes back, health check succeeds and onopen handler resets circuit breaker
+  useEffect(() => {
+    // Check state directly (ref is updated by separate useEffect)
+    if (circuitBreakerOpen && enabled && shouldReconnectRef.current) {
+      startHealthCheckInterval();
+    } else {
+      stopHealthCheckInterval();
+    }
+
+    return () => {
+      stopHealthCheckInterval();
+    };
+  }, [circuitBreakerOpen, enabled, startHealthCheckInterval, stopHealthCheckInterval]);
 
   // Main effect - run when enabled or sseUrl changes (sseUrl changes when kioskId changes)
   useEffect(() => {
@@ -325,6 +597,13 @@ export function useServerSentEvents({
         reconnectTimeoutRef.current = null;
       }
       
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+      
+      stopHealthCheckInterval();
+      
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -342,6 +621,7 @@ export function useServerSentEvents({
     canSendMessage: false, // SSE doesn't support sending messages
     reconnectAttempts,
     maxReconnectAttempts,
+    circuitBreakerOpen,
     connect,
     disconnect,
     reconnect,
