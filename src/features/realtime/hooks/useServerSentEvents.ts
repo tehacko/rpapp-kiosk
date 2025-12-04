@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useErrorHandler, getEnvironmentConfig, API_ENDPOINTS } from 'pi-kiosk-shared';
 import { NetworkError } from 'pi-kiosk-shared';
 import { useMessageQueue } from './useMessageQueue';
+import { parseAndValidateSSEMessage } from '../../../shared/utils/sseMessageValidator';
 
 export interface SSEMessage {
   type: string;
@@ -276,18 +277,14 @@ export function useServerSentEvents({
             processQueue();
           }
 
-          // SAFETY: Validate JSON before parsing
-          let message: SSEMessage;
-          try {
-            message = JSON.parse(event.data);
-          } catch (parseError) {
-            console.error('❌ Invalid SSE message format:', event.data);
-            return; // Don't crash, just ignore malformed messages
-          }
+          // SAFETY: Validate JSON before parsing with production-grade validator
+          const message = parseAndValidateSSEMessage(event.data, {
+            kioskId,
+            timestamp: new Date().toISOString(),
+          });
 
-          // SAFETY: Validate message structure
-          if (!message || typeof message !== 'object' || !message.type) {
-            console.error('❌ Invalid SSE message structure:', message);
+          if (!message) {
+            // Validation failed - already logged by validator
             return;
           }
           
