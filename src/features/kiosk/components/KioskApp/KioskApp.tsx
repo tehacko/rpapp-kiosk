@@ -5,7 +5,8 @@ import {
   MultiProductPaymentData,
   createAPIClient, 
   useErrorHandler, 
-  TransactionStatus
+  TransactionStatus,
+  API_ENDPOINTS
 } from 'pi-kiosk-shared';
 
 import { useKioskConfig } from '../../providers/KioskConfigProvider';
@@ -140,6 +141,17 @@ export function KioskApp() {
 
   // SSE connection - memoize onMessage to prevent connection recreation
   const handleSSEMessage = useCallback((message: any) => {
+      // Handle kiosk deletion
+      if (message.type === 'kiosk_deleted') {
+        const deletedKioskId = message.data?.kioskId || message.kioskId;
+        if (deletedKioskId === kioskId) {
+          console.error('❌ This kiosk has been deleted:', deletedKioskId);
+          // Show error and stop trying to reconnect
+          window.location.href = `/?kioskId=${kioskId}&error=kiosk_deleted`;
+          return;
+        }
+      }
+      
       // Handle payment cancellation (fallback if ThePayPayment component misses it)
       if (message.type === 'product_update' && message.updateType === 'payment_cancelled') {
         const paymentId = message.data?.paymentId || '';
@@ -261,8 +273,22 @@ export function KioskApp() {
       console.warn('SSE error (non-blocking):', error);
   }, []);
 
+  // Listen for kiosk-not-found event from SSE hook
+  useEffect(() => {
+    const handleKioskNotFound = (event: CustomEvent<{ kioskId: number }>) => {
+      console.error('❌ Kiosk not found event received:', event.detail);
+      // The SSE hook will stop retrying, but we should show an error to the user
+      // This will be handled by the error screen below
+    };
+
+    window.addEventListener('kiosk-not-found', handleKioskNotFound as EventListener);
+    return () => {
+      window.removeEventListener('kiosk-not-found', handleKioskNotFound as EventListener);
+    };
+  }, []);
+
   // SSE connection - use memoized callbacks
-  const { isConnected: sseConnected } = useServerSentEvents({
+  const { isConnected: sseConnected, connectionError } = useServerSentEvents({
     kioskId: kioskId || 0,
     enabled: kioskId !== null,
     onMessage: handleSSEMessage,
@@ -390,14 +416,29 @@ export function KioskApp() {
     handleError(new Error(error), 'KioskApp.ThePayPayment');
   }, [handleError]);
 
-  const handleThePayPaymentCancel = useCallback(async () => {
-    console.log('🚫 ThePay payment cancelled, going back to payment method selection');
+  const handleThePayPaymentCancel = useCallback(async (paymentId?: string) => {
+    console.log('🚫 ThePay payment cancelled, going back to payment method selection', { paymentId });
+    
+    // Cancel payment on backend if payment ID is available
+    if (paymentId) {
+      try {
+        console.log(`📡 Cancelling ThePay payment on backend: ${paymentId}`);
+        await apiClient.post(API_ENDPOINTS.PAYMENT_CANCEL, {
+          paymentId: paymentId
+        });
+        console.log(`✅ ThePay payment cancelled successfully: ${paymentId}`);
+      } catch (error) {
+        console.error('❌ Error cancelling ThePay payment:', error);
+        // Don't throw - we still want to navigate back even if cancel fails
+      }
+    }
+    
     // Go back one step to payment method selection (step 3), same as QR payment
     await stopMonitoring();
     clearQR();
     setPaymentStep(3);
     setSelectedPaymentMethod(undefined);
-  }, [stopMonitoring, clearQR, setPaymentStep, setSelectedPaymentMethod]);
+  }, [apiClient, stopMonitoring, clearQR, setPaymentStep, setSelectedPaymentMethod]);
 
   // Preload likely next screens for better performance
   useEffect(() => {
@@ -431,14 +472,21 @@ export function KioskApp() {
     }
   }, [selectedPaymentMethod, currentScreen, paymentStep]);
 
-  // Show error screen if kiosk ID is invalid
-  if (!isValid || kioskError) {
+  // Show error screen if kiosk ID is invalid or kiosk was deleted
+  const isKioskDeleted = connectionError?.includes('was deleted') || connectionError?.includes('does not exist');
+  
+  if (!isValid || kioskError || isKioskDeleted) {
+    const errorMessage = isKioskDeleted 
+      ? `Kiosk ${kioskId} byl smazán nebo neexistuje`
+      : kioskError || connectionError || 'Neznámá chyba';
+    
     return (
       <div className={`${styles.kioskApp} ${styles.kioskMode}`} data-testid="kiosk-error-screen">
         <div className={styles.errorScreen}>
           <div className={styles.errorContent}>
-            <h1>❌ Chyba konfigurace kiosku</h1>
-            <p className={styles.errorMessage}>Error: {kioskError}</p>
+            <h1>❌ {isKioskDeleted ? 'Kiosk byl smazán' : 'Chyba konfigurace kiosku'}</h1>
+            <p className={styles.errorMessage}>Error: {errorMessage}</p>
+            {!isKioskDeleted && (
             <div className={styles.errorInstructions}>
               <h3>Jak opravit:</h3>
               <ol>
@@ -451,6 +499,12 @@ export function KioskApp() {
                 </li>
               </ol>
             </div>
+            )}
+            {isKioskDeleted && (
+              <div className={styles.errorInstructions}>
+                <p>Kiosk s ID {kioskId} byl smazán z databáze. Kontaktujte administrátora.</p>
+              </div>
+            )}
             <button onClick={() => window.location.reload()} className={styles.retryBtn}>
               🔄 Zkusit znovu
             </button>

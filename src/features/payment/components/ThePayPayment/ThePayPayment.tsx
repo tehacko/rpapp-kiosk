@@ -51,7 +51,7 @@ interface ThePayPaymentProps {
   kioskId: number;
   onPaymentSuccess: (paymentData: any) => void;
   onPaymentError: (error: string) => void;
-  onCancel: () => void;
+  onCancel: (paymentId?: string) => void;
 }
 
 export function ThePayPayment({ 
@@ -394,12 +394,17 @@ export function ThePayPayment({
     createPayment();
   };
 
+  // Create cancel handler that passes payment ID
+  const handleCancel = useCallback(() => {
+    onCancel(paymentIdRef.current || undefined);
+  }, [onCancel]);
+
   // Render based on mode
   if (THEPAY_MODE === 'redirect') {
-    return renderRedirectMode(state.status, state.error, handleRetry, onCancel);
+    return renderRedirectMode(state.status, state.error, handleRetry, handleCancel);
   }
   
-  return renderQRMode(state.status, state.qrCodeUrl, state.paymentData, state.error, handleRetry, onCancel);
+  return renderQRMode(state.status, state.qrCodeUrl, state.paymentData, state.error, handleRetry, handleCancel);
 }
 
 // Render function for redirect mode

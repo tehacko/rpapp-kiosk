@@ -8,7 +8,6 @@ import {
   MultiProductPaymentData,
   useErrorHandler,
   TransactionStatus,
-  ApiResponse,
   CreateMultiQRPaymentResponse,
 } from 'pi-kiosk-shared';
 
@@ -36,7 +35,7 @@ export function useQRGeneration({
       try {
         // Create multi-product payment via backend API
         console.log('Calling API endpoint:', API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR);
-        const response = await apiClient.post<ApiResponse<CreateMultiQRPaymentResponse>>(API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR, {
+        const response = await apiClient.post<CreateMultiQRPaymentResponse>(API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR, {
           items: cart.items.map((item) => ({
             productId: item.product.id,
             quantity: item.quantity,
@@ -48,8 +47,9 @@ export function useQRGeneration({
 
         console.log('API response:', response);
 
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Failed to create multi-product payment');
+        // Backend returns {success: true, data: {...}}
+        if (!response || !response.success || !response.data) {
+          throw new Error('Failed to create multi-product payment');
         }
 
         const { paymentId, qrCodeData, amount, customerEmail } = response.data;

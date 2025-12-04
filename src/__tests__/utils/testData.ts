@@ -93,8 +93,7 @@ export const testDataSets = {
   emptyCart: {
     items: [],
     totalItems: 0,
-    totalAmount: 0,
-    kioskId: 1
+    totalAmount: 0
   } as Cart,
 
   cartWithItems: {
@@ -114,13 +113,12 @@ export const testDataSets = {
           quantityInStock: 5,
           kioskClickedOn: 0,
           kioskNumberOfPurchases: 0
-        },
+        } as KioskProduct,
         quantity: 2
       }
     ],
     totalItems: 2,
-    totalAmount: 200,
-    kioskId: 1
+    totalAmount: 200
   } as Cart,
 
   completedPayment: {
@@ -145,7 +143,7 @@ export const testDataSets = {
           quantityInStock: 5,
           kioskClickedOn: 0,
           kioskNumberOfPurchases: 0
-        },
+        } as KioskProduct,
         quantity: 2
       }
     ]
@@ -173,7 +171,7 @@ export const testDataSets = {
           quantityInStock: 2,
           kioskClickedOn: 0,
           kioskNumberOfPurchases: 0
-        },
+        } as KioskProduct,
         quantity: 1
       }
     ]

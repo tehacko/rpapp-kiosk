@@ -7,13 +7,16 @@ import type { SSEMessage } from '../../features/realtime/hooks/useServerSentEven
 
 /**
  * SSE Message Schema - Validates message structure and types
+ * Matches backend SSEService message format
  */
 const SSEMessageSchema = z.object({
-  type: z.string().min(1).describe('Message type identifier'),
+  type: z.string().min(1).describe('Message type identifier (connection, ping, product_update, etc.)'),
+  message: z.string().optional().describe('Human-readable message (for connection type)'),
+  kioskId: z.number().optional().describe('Kiosk ID (for connection type)'),
   updateType: z.string().optional().describe('Update type for specific events'),
   data: z.unknown().optional().describe('Message payload data'),
   timestamp: z.string().datetime().optional().describe('ISO 8601 timestamp'),
-}).strict(); // Reject unknown fields
+}).passthrough(); // Allow additional fields from backend
 
 /**
  * Parse and validate SSE message with comprehensive error handling
@@ -75,7 +78,7 @@ export function parseAndValidateSSEMessage(
   // Step 4: Schema validation with Zod
   const validationResult = SSEMessageSchema.safeParse(parsed);
   if (!validationResult.success) {
-    const errors = validationResult.error.errors.map((err) => ({
+    const errors = validationResult.error.issues.map((err: any) => ({
       path: err.path.join('.'),
       message: err.message,
       code: err.code,

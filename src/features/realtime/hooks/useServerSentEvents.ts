@@ -6,6 +6,8 @@ import { parseAndValidateSSEMessage } from '../../../shared/utils/sseMessageVali
 
 export interface SSEMessage {
   type: string;
+  message?: string; // Human-readable message (for connection type)
+  kioskId?: number; // Kiosk ID (for connection type)
   updateType?: string;
   data?: any;
   timestamp?: string;
@@ -340,6 +342,7 @@ export function useServerSentEvents({
         // If connection is closed, it means connection failed
         if (readyState === EventSource.CLOSED) {
           isConnectingRef.current = false;
+          
           const error = new NetworkError('SSE connection closed/failed');
           console.error('❌ SSE connection failed - readyState is CLOSED');
           setConnectionError(error.message);
@@ -347,32 +350,77 @@ export function useServerSentEvents({
           handleError(error, 'useSSE.onerror');
           onErrorRef.current?.(error);
 
-          // Circuit breaker and exponential backoff logic
-          failureCountRef.current += 1;
-          lastFailureTimeRef.current = Date.now();
-
-          if (failureCountRef.current >= CIRCUIT_BREAKER_THRESHOLD) {
-            setCircuitBreakerOpen(true);
-            console.warn(`🔴 Circuit breaker opened after ${failureCountRef.current} failures - stopping reconnection attempts`);
-            // Start periodic health checks when circuit breaker opens
-            // Note: This will be handled by the useEffect that watches circuitBreakerOpen
-            return; // Don't attempt reconnection
+          // Check if kiosk exists by trying to access the SSE endpoint directly
+          // This helps us detect if the kiosk was deleted (will return 404)
+          // CRITICAL: Check on first failure BEFORE scheduling any reconnection attempts
+          const checkKioskExists = async () => {
+            try {
+              const response = await fetch(sseUrl, { method: 'HEAD' });
+              
+              if (response.status === 404) {
+                // Kiosk doesn't exist - stop retrying immediately
+                console.error(`❌ Kiosk ${kioskId} not found (404) - stopping reconnection attempts`);
+                shouldReconnectRef.current = false;
+                setCircuitBreakerOpen(true);
+                const kioskNotFoundError = new Error(`Kiosk ${kioskId} was deleted or does not exist`);
+                setConnectionError(kioskNotFoundError.message);
+                onErrorRef.current?.(kioskNotFoundError);
+                // Dispatch event to notify KioskApp
+                window.dispatchEvent(new CustomEvent('kiosk-not-found', { detail: { kioskId } }));
+                return true; // Return true to indicate kiosk was deleted
+              }
+            } catch (checkError) {
+              // If check fails, assume it's a network issue and continue with normal retry logic
+              console.warn('⚠️ Could not verify kiosk existence, continuing with retry logic:', checkError);
+            }
+            return false; // Return false to indicate kiosk exists or check failed
+          };
+          
+          // Check kiosk existence on first failure - await it to prevent race condition
+          if (failureCountRef.current === 0) {
+            checkKioskExists().then((kioskDeleted) => {
+              // If kiosk was deleted, don't proceed with reconnection logic
+              if (kioskDeleted) {
+                return;
+              }
+              
+              // Only proceed with reconnection if kiosk still exists
+              proceedWithReconnection();
+            });
+            return; // Exit early, reconnection will be handled in the promise callback
           }
 
-          // Check if we should attempt reconnection
-          if (shouldReconnectRef.current && reconnectAttempts < maxReconnectAttempts) {
-            const delay = calculateReconnectDelay(reconnectAttempts);
-            console.log(`⏳ Scheduling reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts} in ${delay}ms`);
-            
-            reconnectTimeoutRef.current = setTimeout(() => {
-              // Use ref to check current state (avoids stale closure)
-              if (shouldReconnectRef.current && !circuitBreakerOpenRef.current) {
-                setReconnectAttempts(prev => prev + 1);
-                connect();
-              }
-            }, delay);
-          } else {
-            console.warn('⚠️ Max reconnection attempts reached or reconnection disabled');
+          // For subsequent failures, proceed with normal reconnection logic
+          proceedWithReconnection();
+          
+          function proceedWithReconnection() {
+            // Circuit breaker and exponential backoff logic
+            failureCountRef.current += 1;
+            lastFailureTimeRef.current = Date.now();
+
+            if (failureCountRef.current >= CIRCUIT_BREAKER_THRESHOLD) {
+              setCircuitBreakerOpen(true);
+              console.warn(`🔴 Circuit breaker opened after ${failureCountRef.current} failures - stopping reconnection attempts`);
+              // Start periodic health checks when circuit breaker opens
+              // Note: This will be handled by the useEffect that watches circuitBreakerOpen
+              return; // Don't attempt reconnection
+            }
+
+            // Check if we should attempt reconnection
+            if (shouldReconnectRef.current && reconnectAttempts < maxReconnectAttempts) {
+              const delay = calculateReconnectDelay(reconnectAttempts);
+              console.log(`⏳ Scheduling reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts} in ${delay}ms`);
+              
+              reconnectTimeoutRef.current = setTimeout(() => {
+                // Use ref to check current state (avoids stale closure)
+                if (shouldReconnectRef.current && !circuitBreakerOpenRef.current) {
+                  setReconnectAttempts(prev => prev + 1);
+                  connect();
+                }
+              }, delay);
+            } else {
+              console.warn('⚠️ Max reconnection attempts reached or reconnection disabled');
+            }
           }
         } else if (readyState === EventSource.CONNECTING) {
           // Still connecting - this might be a temporary error

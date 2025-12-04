@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { jest } from '@jest/globals';
 import { PaymentScreen } from './PaymentScreen';
-import { Cart } from 'pi-kiosk-shared';
+import { Cart, KioskProduct } from 'pi-kiosk-shared';
 import {
   testDataSets
 } from '../../../../__tests__/utils/testData';
@@ -82,7 +82,7 @@ const mockCart: Cart = {
         quantityInStock: 5,
         kioskClickedOn: 0,
         kioskNumberOfPurchases: 0
-      }, 
+      } as KioskProduct, 
       quantity: 2 
     }
   ],

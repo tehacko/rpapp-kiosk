@@ -22,12 +22,13 @@
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
     "@types/qrcode": "^1.5.5",
-    "pi-kiosk-shared": "^2.1.1",
+    "pi-kiosk-shared": "^2.1.3",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.5",
-    "serve": "^14.2.1"
+    "serve": "^14.2.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@tanstack/react-query-devtools": "^5.62.0",
