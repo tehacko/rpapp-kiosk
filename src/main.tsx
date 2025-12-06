@@ -1,11 +1,24 @@
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import App from './App.tsx'
-import './index.css'
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import './index.css';
+import { loadRuntimeConfig } from './runtimeConfig';
 
-//main Vanilla React Entry Point
-createRoot(document.getElementById('root')!).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
-)
+const rootElement = document.getElementById('root');
+
+async function bootstrap(): Promise<void> {
+  await loadRuntimeConfig();
+
+  if (!rootElement) {
+    throw new Error('Root element not found');
+  }
+
+  const App = (await import('./App.tsx')).default;
+
+  createRoot(rootElement).render(
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  );
+}
+
+void bootstrap();

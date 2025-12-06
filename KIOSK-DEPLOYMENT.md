@@ -58,7 +58,32 @@ Deploy separate instances for each kiosk (useful for different domains/subdomain
 
 ## Environment Configuration
 
-### Required Environment Variables
+### Runtime Configuration (Auto-Generated)
+
+**Railway Auto-Generation**: The app automatically generates `runtime-config.json` during build from Railway environment variables. No manual file creation needed!
+
+**How it works**:
+1. Railway sets environment variables before build
+2. `postbuild` script runs `scripts/generate-runtime-config.js`
+3. Config file is created in `dist/runtime-config.json`
+4. App fetches config on startup (falls back to build-time env if missing)
+
+**Manual Override** (if needed): You can manually create `public/runtime-config.json` (copy from `public/runtime-config.example.json`), but this is not required with Railway:
+
+```json
+{
+  "apiUrl": "https://your-backend.com",
+  "wsUrl": "wss://your-backend.com",
+  "enableMockPayments": false,
+  "paymentMode": "production",
+  "showDebugInfo": false,
+  "logLevel": "warn"
+}
+```
+
+If the file is missing, the app falls back to build-time environment variables.
+
+### Required Environment Variables (build-time fallback)
 
 ```bash
 # API Configuration
@@ -82,6 +107,8 @@ REACT_APP_ENVIRONMENT=production
 REACT_APP_ENABLE_MOCK_PAYMENTS=false
 REACT_APP_PAYMENT_MODE=production
 ```
+
+> Production defaults: keep `REACT_APP_ENABLE_MOCK_PAYMENTS=false` and `REACT_APP_PAYMENT_MODE=production`.
 
 ## Kiosk Setup in Database
 

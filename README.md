@@ -200,6 +200,12 @@ REACT_APP_PAYMENT_MODE=production
 
 The app is configured for Railway deployment with:
 
+- **Runtime Config Auto-Generation**: `runtime-config.json` is automatically generated during build from Railway environment variables via `postbuild` script
+- **No Rebuilds Needed**: Change Railway env vars → redeploy → config updates automatically
+- **Fallback Support**: App falls back to build-time env vars if `runtime-config.json` is missing
+
+See [KIOSK-DEPLOYMENT.md](./KIOSK-DEPLOYMENT.md) for complete deployment guide.
+
 - Automatic builds on git push
 - Environment-specific configurations
 - Health checks and monitoring

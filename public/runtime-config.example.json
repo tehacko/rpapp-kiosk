@@ -1,0 +1,10 @@
+{
+  "//": "Copy this file to runtime-config.json and replace values during deploy",
+  "apiUrl": "https://your-backend-url.com",
+  "wsUrl": "wss://your-backend-url.com",
+  "enableMockPayments": false,
+  "paymentMode": "production",
+  "showDebugInfo": false,
+  "logLevel": "warn"
+}
+
