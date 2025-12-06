@@ -60,7 +60,9 @@ export function ThePaySuccessPage() {
     const currentPaymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
     const currentKioskId = searchParams.get('kioskId');
     
-    if (!currentPaymentId || !currentKioskId) {
+    // Validate paymentId - reject null, undefined, or invalid strings
+    if (!currentPaymentId || !currentKioskId || currentPaymentId === 'null' || currentPaymentId === 'undefined') {
+      console.error('❌ Invalid paymentId or kioskId in URL:', { currentPaymentId, currentKioskId });
       setStatus('failed');
       return;
     }
@@ -75,10 +77,10 @@ export function ThePaySuccessPage() {
     const maxPolls = 20; // Poll for up to 60 seconds (20 * 3s)
 
     const checkPayment = async () => {
-      // Guard: Ensure paymentId is available before making API call
+      // Guard: Ensure paymentId is available and valid before making API call
       // Use currentPaymentId from closure (fresh from searchParams)
-      if (!currentPaymentId) {
-        console.error('❌ paymentId is null, cannot check payment status');
+      if (!currentPaymentId || currentPaymentId === 'null' || currentPaymentId === 'undefined') {
+        console.error('❌ paymentId is null or invalid, cannot check payment status:', currentPaymentId);
         setStatus('failed');
         return true; // Stop polling
       }

@@ -106,6 +106,19 @@ export function ThePayPayment({
     });
     
     if (isPaymentCompleted && matchesPaymentId) {
+      // Prefer paymentIdRef.current (source of truth) but fallback to message.data.paymentId
+      // Validate paymentId exists and is not a string representation of null/undefined
+      const paymentIdToUse = paymentIdRef.current || message.data?.paymentId;
+      
+      if (!paymentIdToUse || paymentIdToUse === 'null' || paymentIdToUse === 'undefined') {
+        console.error('❌ Payment completed but paymentId is missing or invalid:', { 
+          paymentIdRef: paymentIdRef.current, 
+          messagePaymentId: message.data?.paymentId,
+          paymentIdToUse 
+        });
+        return;
+      }
+      
       console.log('✅ Payment completed via SSE, navigating to success page');
       
       // Stop polling if it's running
@@ -117,11 +130,24 @@ export function ThePayPayment({
       
       // Mark as navigating and navigate
       isNavigatingRef.current = true;
-      navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}`);
+      navigate(`/payment/thepay-success?paymentId=${paymentIdToUse}&kioskId=${kioskId}`);
     } else if (isPaymentCancelled && matchesPaymentId) {
+      // Prefer paymentIdRef.current (source of truth) but fallback to message.data.paymentId
+      // Validate paymentId exists and is not a string representation of null/undefined
+      const paymentIdToUse = paymentIdRef.current || message.data?.paymentId;
+      
+      if (!paymentIdToUse || paymentIdToUse === 'null' || paymentIdToUse === 'undefined') {
+        console.error('❌ Payment cancelled but paymentId is missing or invalid:', { 
+          paymentIdRef: paymentIdRef.current, 
+          messagePaymentId: message.data?.paymentId,
+          paymentIdToUse 
+        });
+        return;
+      }
+      
       console.log('🚫 Payment cancelled via SSE, navigating to cancellation page');
       console.log('🚫 Cancellation details:', { 
-        paymentId: message.data?.paymentId, 
+        paymentId: paymentIdToUse, 
         transactionId: message.data?.transactionId,
         kioskId: message.data?.kioskId 
       });
@@ -135,7 +161,7 @@ export function ThePayPayment({
       
       // Navigate to success page with cancelled status (same as completion, but shows cancellation message)
       isNavigatingRef.current = true;
-      navigate(`/payment/thepay-success?paymentId=${message.data.paymentId}&kioskId=${kioskId}&status=cancelled`);
+      navigate(`/payment/thepay-success?paymentId=${paymentIdToUse}&kioskId=${kioskId}&status=cancelled`);
     } else if (isPaymentCancelled && !matchesPaymentId) {
       console.log('⏭️ SSE cancellation message for different payment:', {
         messagePaymentId: message.data?.paymentId,
@@ -178,6 +204,16 @@ export function ThePayPayment({
         return;
       }
       
+      // Guard: Don't poll if paymentId is missing or invalid
+      if (!paymentIdRef.current || paymentIdRef.current === 'null' || paymentIdRef.current === 'undefined') {
+        console.error('❌ paymentIdRef is null or invalid, stopping polling:', paymentIdRef.current);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        return;
+      }
+      
       attempts++;
       console.log(`🔄 Polling payment status (attempt ${attempts}/${maxAttempts}) for: ${paymentIdRef.current}`);
       
@@ -187,7 +223,7 @@ export function ThePayPayment({
           status: string;
           thepayState?: string;
         }>>(
-          API_ENDPOINTS.PAYMENT_THEPAY_STATUS.replace(':paymentId', paymentIdRef.current || '')
+          API_ENDPOINTS.PAYMENT_THEPAY_STATUS.replace(':paymentId', paymentIdRef.current)
         );
         
         console.log('📊 Polling response:', response);
@@ -204,6 +240,12 @@ export function ThePayPayment({
         console.log('📊 Parsed status:', status, 'isCompleted:', isCompleted, 'isCancelled:', isCancelled, 'isFailed:', isFailed);
         
         if (isCompleted) {
+          // Guard: Ensure paymentId is valid before navigating
+          if (!paymentIdRef.current || paymentIdRef.current === 'null' || paymentIdRef.current === 'undefined') {
+            console.error('❌ Payment completed via polling but paymentId is invalid:', paymentIdRef.current);
+            return;
+          }
+          
           console.log('✅ Payment completed via POLLING, navigating to success page');
           
           // Clear the polling interval
@@ -216,6 +258,12 @@ export function ThePayPayment({
           isNavigatingRef.current = true;
           navigate(`/payment/thepay-success?paymentId=${paymentIdRef.current}&kioskId=${kioskId}`);
         } else if (isCancelled || isFailed) {
+          // Guard: Ensure paymentId is valid before navigating
+          if (!paymentIdRef.current || paymentIdRef.current === 'null' || paymentIdRef.current === 'undefined') {
+            console.error('❌ Payment cancelled/failed via polling but paymentId is invalid:', paymentIdRef.current);
+            return;
+          }
+          
           console.log(`🚫 Payment ${isCancelled ? 'cancelled' : 'failed'} via POLLING, navigating to ${isCancelled ? 'cancellation' : 'failure'} page`);
           
           // Clear the polling interval

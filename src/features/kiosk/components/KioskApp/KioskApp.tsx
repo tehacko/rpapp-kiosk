@@ -156,12 +156,15 @@ export function KioskApp() {
       if (message.type === 'product_update' && message.updateType === 'payment_cancelled') {
         const paymentId = message.data?.paymentId || '';
         
-        if (paymentId.startsWith('thepay-')) {
+        // Validate paymentId before navigating
+        if (paymentId && paymentId !== 'null' && paymentId !== 'undefined' && paymentId.startsWith('thepay-')) {
           console.log('🚫 ThePay payment cancelled (KioskApp fallback), navigating to cancellation page');
           // Navigate to success page with cancelled status (shows cancellation message on kiosk)
           const kioskIdParam = kioskId || 0;
           window.location.href = `/payment/thepay-success?paymentId=${paymentId}&kioskId=${kioskIdParam}&status=cancelled`;
           return;
+        } else if (paymentId && paymentId.startsWith('thepay-')) {
+          console.error('❌ ThePay payment cancelled but paymentId is invalid:', paymentId);
         }
       }
       
