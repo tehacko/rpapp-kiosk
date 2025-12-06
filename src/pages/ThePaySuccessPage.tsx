@@ -40,7 +40,9 @@ export function ThePaySuccessPage() {
     const currentPaymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
     const currentKioskId = searchParams.get('kioskId');
     
-    if (status === 'cancelled' && currentPaymentId && currentKioskId) {
+    // Validate paymentId before using it
+    if (status === 'cancelled' && currentPaymentId && currentKioskId && 
+        currentPaymentId !== 'null' && currentPaymentId !== 'undefined') {
       console.log('📡 Detected cancellation, notifying backend to broadcast to kiosk');
       const apiClient = createAPIClient();
       apiClient.post('/api/payments/thepay-notify-cancellation', {
@@ -227,8 +229,8 @@ export function ThePaySuccessPage() {
     const currentPaymentId = searchParams.get('paymentId') || searchParams.get('payment_uid');
     const currentKioskId = searchParams.get('kioskId');
     
-    // Call backend to mark transaction as CANCELLED
-    if (currentPaymentId) {
+    // Call backend to mark transaction as CANCELLED - validate paymentId first
+    if (currentPaymentId && currentPaymentId !== 'null' && currentPaymentId !== 'undefined') {
       try {
         const apiClient = createAPIClient();
         await apiClient.post(API_ENDPOINTS.PAYMENT_THEPAY_CANCEL, { paymentId: currentPaymentId });
