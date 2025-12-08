@@ -6,6 +6,7 @@ import {
   CSS_CLASSES, 
   formatPrice
 } from 'pi-kiosk-shared';
+import type { ProviderStatus } from '../../hooks/usePaymentProviderStatus';
 import styles from './PaymentForm.module.css';
 
 interface PaymentFormProps {
@@ -18,9 +19,25 @@ interface PaymentFormProps {
   onStepChange: (step: number) => void;
   selectedPaymentMethod?: 'qr' | 'thepay';
   onPaymentMethodSelect?: (method: 'qr' | 'thepay') => void;
+  /** Provider status for QR payments (from usePaymentProviderStatus) */
+  qrProviderStatus?: ProviderStatus | null;
+  /** Provider status for ThePay payments (from usePaymentProviderStatus) */
+  thepayProviderStatus?: ProviderStatus | null;
 }
 
-export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email, onEmailChange, onStepChange: _onStepChange, selectedPaymentMethod: _selectedPaymentMethod, onPaymentMethodSelect }: PaymentFormProps) {
+export function PaymentForm({ 
+  cart, 
+  onSubmit, 
+  isGeneratingQR, 
+  currentStep, 
+  email, 
+  onEmailChange, 
+  onStepChange: _onStepChange, 
+  selectedPaymentMethod: _selectedPaymentMethod, 
+  onPaymentMethodSelect,
+  qrProviderStatus,
+  thepayProviderStatus
+}: PaymentFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Listen for email validation errors from parent
@@ -157,25 +174,43 @@ export function PaymentForm({ cart, onSubmit, isGeneratingQR, currentStep, email
           <div className={styles.paymentMethods}>
             <h3 className={styles.paymentMethodsTitle}>Vyberte způsob platby:</h3>
             
+            {/* QR Payment Button */}
+            <div className={styles.paymentMethodWrapper}>
             <button 
               type="button"
               onClick={() => handlePaymentMethodSubmit('qr')}
-              className={`${styles.paymentMethodBtn} ${styles.qrBtn} ${CSS_CLASSES.BUTTON_PRIMARY}`}
-              disabled={isGeneratingQR}
+                className={`${styles.paymentMethodBtn} ${styles.qrBtn} ${CSS_CLASSES.BUTTON_PRIMARY} ${qrProviderStatus && !qrProviderStatus.available ? styles.unavailable : ''}`}
+                disabled={isGeneratingQR || (qrProviderStatus !== null && qrProviderStatus !== undefined && !qrProviderStatus.available)}
+                aria-disabled={qrProviderStatus !== null && qrProviderStatus !== undefined && !qrProviderStatus.available}
             >
               <span aria-hidden="true">📱</span>
               QR kód
             </button>
+              {qrProviderStatus && !qrProviderStatus.available && (
+                <span className={styles.unavailableHint} role="status">
+                  Dočasně nedostupné
+                </span>
+              )}
+            </div>
             
+            {/* ThePay Button */}
+            <div className={styles.paymentMethodWrapper}>
             <button 
               type="button"
               onClick={() => handlePaymentMethodSubmit('thepay')}
-              className={`${styles.paymentMethodBtn} ${styles.thepayBtn} ${CSS_CLASSES.BUTTON_SECONDARY}`}
-              disabled={isGeneratingQR}
+                className={`${styles.paymentMethodBtn} ${styles.thepayBtn} ${CSS_CLASSES.BUTTON_SECONDARY} ${thepayProviderStatus && !thepayProviderStatus.available ? styles.unavailable : ''}`}
+                disabled={isGeneratingQR || (thepayProviderStatus !== null && thepayProviderStatus !== undefined && !thepayProviderStatus.available)}
+                aria-disabled={thepayProviderStatus !== null && thepayProviderStatus !== undefined && !thepayProviderStatus.available}
             >
               <span aria-hidden="true">💳</span>
               ThePay
             </button>
+              {thepayProviderStatus && !thepayProviderStatus.available && (
+                <span className={styles.unavailableHint} role="status">
+                  Dočasně nedostupné
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -6,13 +6,16 @@ interface CartHeaderProps {
   totalItems: number;
   onCheckout: () => void;
   onClear: () => void;
+  /** Disable checkout button (e.g., when all payments are unavailable) */
+  disabled?: boolean;
 }
 
 function CartHeaderComponent({ 
   isEmpty, 
   totalItems, 
   onCheckout, 
-  onClear
+  onClear,
+  disabled = false
 }: CartHeaderProps) {
   const handleCheckout = useCallback(() => {
     onCheckout();
@@ -38,8 +41,11 @@ function CartHeaderComponent({
         </button>
         <button
           onClick={handleCheckout}
-          className={styles.checkoutBtnHeader}
+          className={`${styles.checkoutBtnHeader} ${disabled ? styles.disabled : ''}`}
           type="button"
+          disabled={disabled}
+          aria-disabled={disabled}
+          title={disabled ? 'Platby jsou dočasně nedostupné' : undefined}
         >
           💳 Zaplatit
         </button>
@@ -53,6 +59,7 @@ export const CartHeader = React.memo(CartHeaderComponent, (prevProps, nextProps)
   return (
     prevProps.isEmpty === nextProps.isEmpty &&
     prevProps.totalItems === nextProps.totalItems &&
+    prevProps.disabled === nextProps.disabled &&
     prevProps.onCheckout === nextProps.onCheckout &&
     prevProps.onClear === nextProps.onClear
   );

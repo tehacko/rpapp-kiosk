@@ -18,7 +18,8 @@ import {
   usePaymentNavigation, 
   usePaymentState, 
   useQRGeneration, 
-  usePaymentMonitoring 
+  usePaymentMonitoring,
+  usePaymentProviderStatus
 } from '../../../payment';
 
 import { FullscreenButton, ErrorBoundary } from '../../../../shared/components';
@@ -92,6 +93,15 @@ export function KioskApp() {
   const { currentScreen, paymentStep, goToPayment, goToProducts, goToConfirmation, setPaymentStep } = usePaymentNavigation();
   const { email, selectedPaymentMethod, paymentData, setEmail, setSelectedPaymentMethod, setPaymentData, resetPaymentState } = usePaymentState();
   const [monitoringStartTime, setMonitoringStartTime] = useState<number | null>(null);
+  
+  // Payment provider status (for disabling unavailable payment methods)
+  const { thepay: thepayStatus, qr: qrStatus, isLoading: isLoadingProviderStatus } = usePaymentProviderStatus();
+  
+  // Compute if ALL payment methods are unavailable (for showing warning on products screen)
+  // Only show as unavailable once we've loaded status AND both providers are confirmed unavailable
+  const allPaymentsUnavailable = !isLoadingProviderStatus && 
+    thepayStatus !== null && qrStatus !== null &&
+    !thepayStatus.available && !qrStatus.available;
   
   // QR generation and monitoring
   const { startMonitoring, stopMonitoring } = usePaymentMonitoring();
@@ -544,6 +554,7 @@ export function KioskApp() {
           onClearCart={handleClearCart}
           isConnected={isConnected}
           qrCodeUrl={qrCodeUrl}
+          allPaymentsUnavailable={allPaymentsUnavailable}
         />
           </Suspense>
         </ErrorBoundary>
@@ -584,6 +595,8 @@ export function KioskApp() {
           onBack={handleBack}
           onNext={handleNext}
           onStepChange={setPaymentStep}
+          qrProviderStatus={qrStatus}
+          thepayProviderStatus={thepayStatus}
         />
           </Suspense>
         </ErrorBoundary>

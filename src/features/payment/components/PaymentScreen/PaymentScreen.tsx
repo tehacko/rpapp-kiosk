@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Cart as CartType, PaymentData, MultiProductPaymentData, formatPrice } from 'pi-kiosk-shared';
 import { PaymentForm } from '../PaymentForm/PaymentForm';
+import type { ProviderStatus } from '../../hooks/usePaymentProviderStatus';
 import styles from './PaymentScreen.module.css';
 
 // Lazy load heavy payment feature components
@@ -70,6 +71,10 @@ interface PaymentScreenProps {
   onBack: () => void;
   onNext: () => void;
   onStepChange: (step: number) => void;
+  /** Provider status for QR payments (from usePaymentProviderStatus) */
+  qrProviderStatus?: ProviderStatus | null;
+  /** Provider status for ThePay payments (from usePaymentProviderStatus) */
+  thepayProviderStatus?: ProviderStatus | null;
 }
 
 function PaymentScreenComponent({
@@ -93,6 +98,8 @@ function PaymentScreenComponent({
   onBack,
   onNext,
   onStepChange,
+  qrProviderStatus,
+  thepayProviderStatus,
 }: PaymentScreenProps) {
   if (isCartEmpty) {
     return null; // Should not render if cart is empty
@@ -115,6 +122,8 @@ function PaymentScreenComponent({
               onStepChange={onStepChange}
               selectedPaymentMethod={selectedPaymentMethod}
               onPaymentMethodSelect={onPaymentMethodSelect}
+              qrProviderStatus={qrProviderStatus}
+              thepayProviderStatus={thepayProviderStatus}
             />
           )}
 

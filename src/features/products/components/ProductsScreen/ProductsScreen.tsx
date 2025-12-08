@@ -17,6 +17,8 @@ interface ProductsScreenProps {
   onClearCart: () => void;
   isConnected: boolean;
   qrCodeUrl?: string;
+  /** True when ALL payment methods are unavailable */
+  allPaymentsUnavailable?: boolean;
 }
 
 function ProductsScreenComponent({
@@ -31,7 +33,8 @@ function ProductsScreenComponent({
   onCheckout,
   onClearCart,
   isConnected: _isConnected,
-  qrCodeUrl
+  qrCodeUrl,
+  allPaymentsUnavailable = false
 }: ProductsScreenProps) {
   // Memoize header content to prevent unnecessary re-renders
   const headerContent = useMemo(() => {
@@ -42,6 +45,7 @@ function ProductsScreenComponent({
             totalItems={totalItems}
             onCheckout={onCheckout}
             onClear={onClearCart}
+            disabled={allPaymentsUnavailable}
           />
       );
     } else if (!qrCodeUrl) {
@@ -52,10 +56,20 @@ function ProductsScreenComponent({
       );
     }
     return null;
-  }, [isCartEmpty, qrCodeUrl, totalItems, onCheckout, onClearCart]);
+  }, [isCartEmpty, qrCodeUrl, totalItems, onCheckout, onClearCart, allPaymentsUnavailable]);
 
   return (
     <div className={styles.productsScreen}>
+      {/* Payment unavailable banner */}
+      {allPaymentsUnavailable && (
+        <div className={styles.paymentUnavailableBanner} role="alert">
+          <span className={styles.bannerIcon} aria-hidden="true">⚠️</span>
+          <span className={styles.bannerText}>
+            Platby jsou dočasně nedostupné. Zkuste to prosím později.
+          </span>
+        </div>
+      )}
+
       <div className={styles.productsHeader}>{headerContent}</div>
 
       <ProductGrid
@@ -81,6 +95,7 @@ export const ProductsScreen = React.memo(ProductsScreenComponent, (prevProps, ne
     prevProps.totalItems === nextProps.totalItems &&
     prevProps.isConnected === nextProps.isConnected &&
     prevProps.qrCodeUrl === nextProps.qrCodeUrl &&
+    prevProps.allPaymentsUnavailable === nextProps.allPaymentsUnavailable &&
     prevProps.onAddToCart === nextProps.onAddToCart &&
     prevProps.getItemQuantity === nextProps.getItemQuantity &&
     prevProps.onRetry === nextProps.onRetry &&
