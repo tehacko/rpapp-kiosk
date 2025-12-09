@@ -1,4 +1,4 @@
-import { useCallback, useState, Suspense, lazy, startTransition, useEffect } from 'react';
+import { useCallback, useState, Suspense, lazy, startTransition, useEffect, useRef } from 'react';
 import { 
   Cart as CartType,
   PaymentData, 
@@ -43,6 +43,9 @@ const ConfirmationScreen = lazy(() =>
     default: module.ConfirmationScreen,
   }))
 );
+
+// PaymentsUnavailableScreen - not lazy loaded since it's a critical error state
+import { PaymentsUnavailableScreen } from '../../../payment/components/PaymentsUnavailableScreen/PaymentsUnavailableScreen';
 
 // Loading fallback component
 function LoadingSpinner({ message = 'Načítám...' }: { message?: string }) {
@@ -96,6 +99,7 @@ export function KioskApp() {
   
   // Payment provider status (for disabling unavailable payment methods)
   const { thepay: thepayStatus, qr: qrStatus, isLoading: isLoadingProviderStatus } = usePaymentProviderStatus();
+  const hasHandledAllUnavailableRef = useRef(false);
   
   // Compute if ALL payment methods are unavailable (for showing warning on products screen)
   // Only show as unavailable once we've loaded status AND both providers are confirmed unavailable
@@ -485,6 +489,29 @@ export function KioskApp() {
     }
   }, [selectedPaymentMethod, currentScreen, paymentStep]);
 
+  // Stop any ongoing payment operations if all payments become unavailable during payment flow
+  useEffect(() => {
+    if (allPaymentsUnavailable && currentScreen === 'payment') {
+      if (hasHandledAllUnavailableRef.current) {
+        return;
+      }
+      hasHandledAllUnavailableRef.current = true;
+      console.warn('⚠️ All payment methods unavailable during payment flow. Stopping operations and returning to products.');
+      
+      // Stop any ongoing payment monitoring and clear state
+      void stopMonitoring();
+      clearQR();
+      resetPaymentState();
+      clearCart();
+      startTransition(() => {
+        goToProducts();
+      });
+    } else if (!allPaymentsUnavailable) {
+      // Reset guard when payments become available again
+      hasHandledAllUnavailableRef.current = false;
+    }
+  }, [allPaymentsUnavailable, currentScreen, stopMonitoring, clearQR, resetPaymentState, clearCart, goToProducts]);
+
   // Show error screen if kiosk ID is invalid or kiosk was deleted
   const isKioskDeleted = connectionError?.includes('was deleted') || connectionError?.includes('does not exist');
   
@@ -523,6 +550,15 @@ export function KioskApp() {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Show full-screen unavailable message when ALL payment methods are down (on any screen)
+  if (allPaymentsUnavailable) {
+    return (
+      <div className={`${styles.kioskApp} ${styles.kioskMode}`}>
+        <PaymentsUnavailableScreen />
       </div>
     );
   }

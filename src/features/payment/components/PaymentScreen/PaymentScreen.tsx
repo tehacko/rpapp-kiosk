@@ -214,7 +214,10 @@ export const PaymentScreen = React.memo<PaymentScreenProps>(PaymentScreenCompone
     prevProps.onThePayPaymentCancel === nextProps.onThePayPaymentCancel &&
     prevProps.onBack === nextProps.onBack &&
     prevProps.onNext === nextProps.onNext &&
-    prevProps.onStepChange === nextProps.onStepChange
+    prevProps.onStepChange === nextProps.onStepChange &&
+    // Provider status props - must compare for re-render when availability changes
+    prevProps.qrProviderStatus?.available === nextProps.qrProviderStatus?.available &&
+    prevProps.thepayProviderStatus?.available === nextProps.thepayProviderStatus?.available
   );
 });
 

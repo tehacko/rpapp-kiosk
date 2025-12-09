@@ -187,11 +187,8 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
   }, [apiClient, handleError, startPollingFallback]);
 
   const stopMonitoring = useCallback(async () => {
-    console.log('🛑 stopMonitoring called');
-    
     // Stop frontend polling interval (using ref to always get current value)
     if (pollingIntervalRef.current) {
-      console.log('🛑 Clearing frontend polling interval');
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
@@ -199,18 +196,13 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
     // Stop backend FIO polling if there's an active payment
     const paymentIdToStop = currentPaymentId.current;
     if (paymentIdToStop) {
-      console.log(`🛑 Stopping backend monitoring for payment: ${paymentIdToStop}`);
       try {
         await apiClient.post(API_ENDPOINTS.PAYMENT_STOP_MONITORING, {
           paymentId: paymentIdToStop
         });
-        console.log(`✅ Successfully stopped backend monitoring for payment: ${paymentIdToStop}`);
-      } catch (error) {
-        console.error('❌ Error stopping backend monitoring:', error);
-        // Don't throw - we still want to clear local state even if backend call fails
+      } catch {
+        // Silent fail - still clear local state
       }
-    } else {
-      console.log('🛑 No active payment ID to stop');
     }
     
     currentPaymentId.current = null;

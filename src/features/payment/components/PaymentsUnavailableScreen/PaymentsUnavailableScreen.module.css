@@ -1,0 +1,55 @@
+/**
+ * PaymentsUnavailableScreen Styles
+ * Matches the kiosk's 480x320 design and color scheme
+ */
+
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.content {
+  max-width: 90%;
+  background: var(--color-bg-glass);
+  padding: var(--spacing-12) var(--spacing-10);
+  border-radius: var(--radius-2xl);
+  border: 2px solid var(--color-warning);
+  backdrop-filter: var(--backdrop-blur-md);
+}
+
+.icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-6);
+}
+
+.title {
+  font-size: var(--font-size-3xl);
+  margin: 0 0 var(--spacing-6) 0;
+  color: var(--color-warning);
+  font-weight: var(--font-weight-bold);
+}
+
+.message {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-3) 0;
+  line-height: var(--line-height-relaxed);
+}
+
+.submessage {
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-6) 0;
+}
+
+.note {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0;
+}

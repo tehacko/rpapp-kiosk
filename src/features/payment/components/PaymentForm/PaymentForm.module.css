@@ -377,15 +377,6 @@
   transform: none !important;
 }
 
-/* Wrapper for payment method button + hint */
-.paymentMethodWrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-2);
-  width: 100%;
-}
-
 /* Unavailable state for payment buttons */
 .paymentMethodBtn.unavailable {
   opacity: 0.5;
@@ -398,16 +389,12 @@
   transform: none !important;
 }
 
-/* Hint text for unavailable payment methods */
-.unavailableHint {
-  font-size: var(--font-size-lg);
-  color: var(--color-warning);
-  font-weight: var(--font-weight-semibold);
-  text-align: center;
-  padding: var(--spacing-2) var(--spacing-4);
-  background: var(--color-warning-light, rgba(255, 193, 7, 0.15));
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-warning);
+/* Inline unavailable text shown in brackets next to button label */
+.unavailableInline {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-normal);
+  opacity: 0.8;
+  margin-left: var(--spacing-2);
 }
 
 .processingMessage {

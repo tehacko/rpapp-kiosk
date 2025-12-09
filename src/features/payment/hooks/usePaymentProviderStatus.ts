@@ -135,6 +135,71 @@ export function usePaymentProviderStatus(): UsePaymentProviderStatusReturn {
     };
   }, [fetchStatus, error]);
 
+  // Listen for SSE provider_status_change events for immediate update
+  useEffect(() => {
+    const handleSSEMessage = (event: CustomEvent<{ data: string }>) => {
+      try {
+        const message = JSON.parse(event.detail.data);
+        
+        // Check if this is a provider status change event
+        if (message.type === 'provider_status_change' && message.data) {
+          const { provider, available, status, checkedAt } = message.data as {
+            provider: 'thepay' | 'qr';
+            available: boolean;
+            status: ProviderStatusLevel;
+            checkedAt: string;
+          };
+          
+          console.log('📡 [usePaymentProviderStatus] Received provider status change:', message.data);
+          
+          // Update state directly from SSE data (no API call needed)
+          if (provider === 'thepay') {
+            setThepay(prev => prev ? {
+              ...prev,
+              available,
+              status,
+              checkedAt,
+            } : {
+              name: 'thepay',
+              status,
+              latencyMs: null,
+              checkedAt,
+              failCount: 0,
+              available,
+              configured: true,
+            });
+          } else if (provider === 'qr') {
+            setQr(prev => prev ? {
+              ...prev,
+              available,
+              status,
+              checkedAt,
+            } : {
+              name: 'qr',
+              status,
+              latencyMs: null,
+              checkedAt,
+              failCount: 0,
+              available,
+              configured: true,
+            });
+          }
+          
+          setLastFetchAt(new Date());
+          setError(null);
+        }
+      } catch {
+        // Ignore parse errors - not all messages are JSON
+      }
+    };
+
+    window.addEventListener('websocket-message', handleSSEMessage as EventListener);
+    
+    return () => {
+      window.removeEventListener('websocket-message', handleSSEMessage as EventListener);
+    };
+  }, []);
+
   return {
     thepay,
     qr,

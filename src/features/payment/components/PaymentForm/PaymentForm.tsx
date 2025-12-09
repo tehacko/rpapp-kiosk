@@ -175,42 +175,34 @@ export function PaymentForm({
             <h3 className={styles.paymentMethodsTitle}>Vyberte způsob platby:</h3>
             
             {/* QR Payment Button */}
-            <div className={styles.paymentMethodWrapper}>
             <button 
               type="button"
               onClick={() => handlePaymentMethodSubmit('qr')}
-                className={`${styles.paymentMethodBtn} ${styles.qrBtn} ${CSS_CLASSES.BUTTON_PRIMARY} ${qrProviderStatus && !qrProviderStatus.available ? styles.unavailable : ''}`}
-                disabled={isGeneratingQR || (qrProviderStatus !== null && qrProviderStatus !== undefined && !qrProviderStatus.available)}
-                aria-disabled={qrProviderStatus !== null && qrProviderStatus !== undefined && !qrProviderStatus.available}
+              className={`${styles.paymentMethodBtn} ${styles.qrBtn} ${CSS_CLASSES.BUTTON_PRIMARY} ${qrProviderStatus && !qrProviderStatus.available ? styles.unavailable : ''}`}
+              disabled={isGeneratingQR || (qrProviderStatus !== null && qrProviderStatus !== undefined && !qrProviderStatus.available)}
+              aria-disabled={qrProviderStatus !== null && qrProviderStatus !== undefined && !qrProviderStatus.available}
             >
               <span aria-hidden="true">📱</span>
               QR kód
-            </button>
               {qrProviderStatus && !qrProviderStatus.available && (
-                <span className={styles.unavailableHint} role="status">
-                  Dočasně nedostupné
-                </span>
+                <span className={styles.unavailableInline}>(dočasně nedostupné)</span>
               )}
-            </div>
+            </button>
             
             {/* ThePay Button */}
-            <div className={styles.paymentMethodWrapper}>
             <button 
               type="button"
               onClick={() => handlePaymentMethodSubmit('thepay')}
-                className={`${styles.paymentMethodBtn} ${styles.thepayBtn} ${CSS_CLASSES.BUTTON_SECONDARY} ${thepayProviderStatus && !thepayProviderStatus.available ? styles.unavailable : ''}`}
-                disabled={isGeneratingQR || (thepayProviderStatus !== null && thepayProviderStatus !== undefined && !thepayProviderStatus.available)}
-                aria-disabled={thepayProviderStatus !== null && thepayProviderStatus !== undefined && !thepayProviderStatus.available}
+              className={`${styles.paymentMethodBtn} ${styles.thepayBtn} ${CSS_CLASSES.BUTTON_SECONDARY} ${thepayProviderStatus && !thepayProviderStatus.available ? styles.unavailable : ''}`}
+              disabled={isGeneratingQR || (thepayProviderStatus !== null && thepayProviderStatus !== undefined && !thepayProviderStatus.available)}
+              aria-disabled={thepayProviderStatus !== null && thepayProviderStatus !== undefined && !thepayProviderStatus.available}
             >
               <span aria-hidden="true">💳</span>
               ThePay
-            </button>
               {thepayProviderStatus && !thepayProviderStatus.available && (
-                <span className={styles.unavailableHint} role="status">
-                  Dočasně nedostupné
-                </span>
+                <span className={styles.unavailableInline}>(dočasně nedostupné)</span>
               )}
-            </div>
+            </button>
           </div>
         </div>
       )}

@@ -3,3 +3,4 @@ export { QRDisplay } from './QRDisplay/QRDisplay';
 export { ThePayPayment } from './ThePayPayment/ThePayPayment';
 export { ConfirmationScreen } from './ConfirmationScreen/ConfirmationScreen';
 export { PaymentScreen } from './PaymentScreen/PaymentScreen';
+export { PaymentsUnavailableScreen } from './PaymentsUnavailableScreen/PaymentsUnavailableScreen';
