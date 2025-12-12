@@ -15,7 +15,7 @@ const mockValidateKioskId = validateKioskId as jest.MockedFunction<typeof valida
 const mockGetKioskSecretFromUrl = getKioskSecretFromUrl as jest.MockedFunction<typeof getKioskSecretFromUrl>;
 
 // Test component that uses the hook
-const TestComponent = () => {
+function TestComponent() {
   const { kioskId, kioskSecret, isValid, error } = useKioskConfig();
   return (
     <div>
@@ -25,7 +25,7 @@ const TestComponent = () => {
       <div data-testid="error">{error}</div>
     </div>
   );
-};
+}
 
 describe('KioskConfigProvider', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cart as CartType, CartItem } from 'pi-kiosk-shared';
+import type { Cart as CartType, CartItem } from 'pi-kiosk-shared';
 import { formatPrice } from 'pi-kiosk-shared';
 import styles from './Cart.module.css';
 
@@ -11,13 +11,13 @@ interface CartProps {
   onProceedToCheckout: () => void;
 }
 
-export const Cart: React.FC<CartProps> = ({
+export function Cart({
   cart,
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
   onProceedToCheckout
-}) => {
+}: CartProps): JSX.Element {
   if (cart.items.length === 0) {
     return (
       <div className={styles.cartEmpty}>
@@ -52,7 +52,7 @@ export const Cart: React.FC<CartProps> = ({
                   loading="lazy"
                 />
               ) : (
-                <span className={styles.imageFallback}>{item.product.image || '📦'}</span>
+                <span className={styles.imageFallback}>{item.product.image ?? '📦'}</span>
               )}
             </div>
             
@@ -112,4 +112,4 @@ export const Cart: React.FC<CartProps> = ({
       </div>
     </div>
   );
-};
+}

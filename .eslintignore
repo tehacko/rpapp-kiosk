@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+dist/
+build/
+
+# Build outputs
+*.min.js
+*.bundle.js
+
+# Config files that don't need linting
+*.config.js
+*.config.ts
+vite.config.*
+jest.config.*
+
+# Generated files
+scripts/generate-runtime-config.js
+start.js
+deploy-kiosk.js
+
+# Public assets
+public/
+
+# Logs
+*.log

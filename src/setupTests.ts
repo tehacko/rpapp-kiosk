@@ -40,8 +40,8 @@ jest.mock('pi-kiosk-shared', () => ({
     retryAction: jest.fn()
   })),
   useAsyncOperation: jest.fn((options = {}) => {
-    let onSuccess = options.onSuccess;
-    let onError = options.onError;
+    const onSuccess = options.onSuccess as (() => void) | undefined;
+    const onError = options.onError as ((error: Error) => void) | undefined;
     
     return {
       execute: jest.fn(async (fn) => {
@@ -170,13 +170,13 @@ global.WebSocket = jest.fn(() => ({
   close: jest.fn(),
   send: jest.fn(),
   readyState: 1, // OPEN
-})) as any;
+})) as unknown as typeof WebSocket;
 
 // Add the missing constants
-(global.WebSocket as any).CONNECTING = 0;
-(global.WebSocket as any).OPEN = 1;
-(global.WebSocket as any).CLOSING = 2;
-(global.WebSocket as any).CLOSED = 3;
+(global.WebSocket as unknown as { CONNECTING: number; OPEN: number; CLOSING: number; CLOSED: number }).CONNECTING = 0;
+(global.WebSocket as unknown as { CONNECTING: number; OPEN: number; CLOSING: number; CLOSED: number }).OPEN = 1;
+(global.WebSocket as unknown as { CONNECTING: number; OPEN: number; CLOSING: number; CLOSED: number }).CLOSING = 2;
+(global.WebSocket as unknown as { CONNECTING: number; OPEN: number; CLOSED: number }).CLOSED = 3;
 
 // Mock QRCode
 jest.mock('qrcode', () => ({
@@ -201,7 +201,7 @@ Object.defineProperty(document, 'fullscreenElement', {
 
 // Suppress React act() warnings in tests
 const originalError = console.error;
-console.error = function(...args: any[]) {
+console.error = function(...args: unknown[]) {
   if (typeof args[0] === 'string' && args[0].includes('Warning: An update to')) {
     return;
   }

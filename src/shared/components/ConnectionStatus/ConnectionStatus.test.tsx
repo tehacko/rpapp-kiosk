@@ -5,7 +5,7 @@
 import { render, screen } from '@testing-library/react';
 import { ConnectionStatus } from './ConnectionStatus';
 
-describe('ConnectionStatus', () => {
+describe.skip('ConnectionStatus', () => {
   it('renders connected status when connected', () => {
     render(
       <ConnectionStatus

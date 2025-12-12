@@ -1,5 +1,5 @@
 // Test data for kiosk app tests
-import { KioskProduct, Cart, MultiProductPaymentData } from 'pi-kiosk-shared';
+import type { KioskProduct, Cart, MultiProductPaymentData } from 'pi-kiosk-shared';
 
 // This file contains test data, not tests
 describe('Test Data', () => {

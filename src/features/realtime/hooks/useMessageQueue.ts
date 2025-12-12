@@ -3,15 +3,16 @@
  * Handles offline message queuing with localStorage persistence
  */
 import { useRef, useEffect, useCallback } from 'react';
+import type { SSEMessage } from './useServerSentEvents';
 
 interface UseMessageQueueOptions {
-  onMessage: (message: any) => void;
+  onMessage: (message: SSEMessage) => void;
   storageKey?: string;
   maxQueueSize?: number;
 }
 
 interface UseMessageQueueReturn {
-  enqueue: (message: any) => void;
+  enqueue: (message: SSEMessage) => void;
   processQueue: () => void;
   clearQueue: () => void;
   queueLength: number;
@@ -25,7 +26,7 @@ export function useMessageQueue({
   storageKey = DEFAULT_STORAGE_KEY,
   maxQueueSize = DEFAULT_MAX_QUEUE_SIZE,
 }: UseMessageQueueOptions): UseMessageQueueReturn {
-  const queueRef = useRef<any[]>([]);
+  const queueRef = useRef<SSEMessage[]>([]);
   const isProcessingRef = useRef(false);
   const onMessageRef = useRef(onMessage);
 
@@ -42,7 +43,7 @@ export function useMessageQueue({
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           queueRef.current = parsed;
-          console.log(
+          console.info(
             `📦 Loaded ${parsed.length} messages from offline queue`
           );
         }
@@ -93,7 +94,7 @@ export function useMessageQueue({
 
   // Enqueue message
   const enqueue = useCallback(
-    (message: any) => {
+    (message: SSEMessage) => {
       // Prevent queue overflow
       if (queueRef.current.length >= maxQueueSize) {
         console.warn(
@@ -118,15 +119,15 @@ export function useMessageQueue({
   );
 
   // Clear queue
-  const clearQueue = useCallback(() => {
+  const clearQueue = useCallback((): void => {
     queueRef.current = [];
     saveQueue();
   }, [saveQueue]);
 
   // Process queue when online
   useEffect(() => {
-    const handleOnline = () => {
-      console.log('🌐 Connection restored, processing queued messages...');
+    const handleOnline = (): void => {
+      console.info('🌐 Connection restored, processing queued messages...');
       processQueue();
     };
 
@@ -137,7 +138,7 @@ export function useMessageQueue({
       processQueue();
     }
 
-    return () => {
+    return (): void => {
       window.removeEventListener('online', handleOnline);
     };
   }, [processQueue]);

@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './ThePayMobileThanks.css';
 
-export function ThePayMobileThanks() {
+export function ThePayMobileThanks(): JSX.Element {
   const [searchParams] = useSearchParams();
   const paymentId = searchParams.get('paymentId');
   const [countdown, setCountdown] = useState(5);
@@ -11,7 +11,7 @@ export function ThePayMobileThanks() {
     // Optional: Countdown to auto-close attempt
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
+      return (): void => clearTimeout(timer);
     } else {
       // Try to close window (will only work if opened via window.open)
       window.close();

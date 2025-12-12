@@ -30,8 +30,8 @@ export const createMockApiClient = (): MockApiClient => {
 
 export const createMockResponse = <T>(
   data: T,
-  status: number = 200,
-  ok: boolean = true
+  status = 200,
+  ok = true
 ): MockApiResponse<T> => ({
   ok,
   status,
@@ -41,8 +41,8 @@ export const createMockResponse = <T>(
 
 export const createMockErrorResponse = (
   error: string,
-  status: number = 500
-): MockApiResponse<any> => ({
+  status = 500
+): MockApiResponse<{ error: string }> => ({
   ok: false,
   status,
   json: jest.fn().mockResolvedValue({ error }),
@@ -262,9 +262,9 @@ export const simulateNetworkError = (mockClient: MockApiClient) => {
 };
 
 // Helper function to simulate slow responses
-export const simulateSlowResponse = (mockClient: MockApiClient, delay: number = 2000) => {
-  const slowResponse = (response: MockApiResponse<any>) => 
-    new Promise<MockApiResponse<any>>(resolve => 
+export const simulateSlowResponse = (mockClient: MockApiClient, delay = 2000): void => {
+  const slowResponse = (response: MockApiResponse<unknown>): Promise<MockApiResponse<unknown>> => 
+    new Promise<MockApiResponse<unknown>>(resolve => 
       setTimeout(() => resolve(response), delay)
     );
 
@@ -353,3 +353,12 @@ export const simulateWebSocketDisconnection = (mockWebSocket: any) => {
   
   listeners.forEach((listener: any) => listener(new CloseEvent('close')));
 };
+
+// Minimal sanity test to satisfy Jest's requirement for at least one test in this file
+describe('mockApi utilities', () => {
+  it('creates a mock client', () => {
+    const client = createMockApiClient();
+    expect(client).toBeDefined();
+    expect(typeof client.get).toBe('function');
+  });
+});

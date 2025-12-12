@@ -9,7 +9,7 @@ export interface SSEMessage {
   message?: string; // Human-readable message (for connection type)
   kioskId?: number; // Kiosk ID (for connection type)
   updateType?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   timestamp?: string;
 }
 
@@ -109,7 +109,7 @@ export function useServerSentEvents({
   
   // Debug logging (only log when URL actually changes)
   useEffect(() => {
-  console.log('🔧 SSE Configuration:', {
+  console.info('🔧 SSE Configuration:', {
     sseUrl,
     kioskId,
     environment: typeof window !== 'undefined' ? window.location.hostname : 'server'
@@ -141,15 +141,15 @@ export function useServerSentEvents({
     isConnectedRef.current = isConnected;
   }, [isConnected]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback((): void => {
     if (!enabled) {
-      console.log('⏭️ SSE connection disabled');
+      console.info('⏭️ SSE connection disabled');
       return;
     }
     
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
-      console.log('⏳ SSE connection already in progress, skipping');
+      console.info('⏳ SSE connection already in progress, skipping');
       return;
     }
 
@@ -157,15 +157,15 @@ export function useServerSentEvents({
     if (eventSourceRef.current) {
       const readyState = eventSourceRef.current.readyState;
       if (readyState === EventSource.OPEN) {
-        console.log('✅ SSE already connected, skipping');
+        console.info('✅ SSE already connected, skipping');
         return;
       }
       if (readyState === EventSource.CONNECTING) {
-        console.log('⏳ SSE already connecting (readyState: CONNECTING), skipping');
+        console.info('⏳ SSE already connecting (readyState: CONNECTING), skipping');
         return;
       }
       // If CLOSED, we need to create a new connection
-      console.log('🧹 Closing existing SSE connection (readyState: CLOSED)');
+      console.info('🧹 Closing existing SSE connection (readyState: CLOSED)');
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
@@ -174,11 +174,11 @@ export function useServerSentEvents({
     isConnectingRef.current = true;
 
     try {
-      console.log(`🔗 Creating new EventSource connection to: ${sseUrl}`);
+      console.info(`🔗 Creating new EventSource connection to: ${sseUrl}`);
       eventSourceRef.current = new EventSource(sseUrl);
       
       const initialReadyState = eventSourceRef.current.readyState;
-      console.log(`📊 EventSource created, initial readyState: ${initialReadyState} (0=CONNECTING, 1=OPEN, 2=CLOSED)`);
+      console.info(`📊 EventSource created, initial readyState: ${initialReadyState} (0=CONNECTING, 1=OPEN, 2=CLOSED)`);
 
       // Clear any existing connection timeout
       if (connectionTimeoutRef.current) {
@@ -215,13 +215,13 @@ export function useServerSentEvents({
         }
       }, 10000); // Increased to 10 seconds
 
-      eventSourceRef.current.onopen = () => {
+      eventSourceRef.current.onopen = (): void => {
         if (connectionTimeoutRef.current) {
           clearTimeout(connectionTimeoutRef.current);
           connectionTimeoutRef.current = null;
         }
         isConnectingRef.current = false;
-        console.log('✅ 📡 SSE CONNECTED successfully!', {
+        console.info('✅ 📡 SSE CONNECTED successfully!', {
           url: sseUrl,
           readyState: eventSourceRef.current?.readyState,
           timestamp: new Date().toISOString()
@@ -247,7 +247,7 @@ export function useServerSentEvents({
         processQueue();
       };
 
-      eventSourceRef.current.onmessage = (event) => {
+      eventSourceRef.current.onmessage = (event: MessageEvent): void => {
         try {
           // CRITICAL: If we receive ANY message, the connection is definitely open
           // Some browsers don't fire onopen reliably, so treat first message as connection
@@ -257,7 +257,7 @@ export function useServerSentEvents({
               connectionTimeoutRef.current = null;
             }
             isConnectingRef.current = false;
-            console.log('✅ SSE connection confirmed by receiving first message (onopen may not have fired)');
+            console.info('✅ SSE connection confirmed by receiving first message (onopen may not have fired)');
             setIsConnected(true);
             setConnectionError(null);
             setReconnectAttempts(0);
@@ -298,11 +298,11 @@ export function useServerSentEvents({
           
           // Handle connection confirmation
           if (message.type === 'connection') {
-            console.log('✅ SSE connection confirmed by server:', message);
+            console.info('✅ SSE connection confirmed by server:', message);
             return;
           }
           
-          console.log('📨 SSE message received:', {
+          console.info('📨 SSE message received:', {
             type: message.type,
             updateType: message.updateType,
             data: message.data,
@@ -313,7 +313,7 @@ export function useServerSentEvents({
           if (navigator.onLine) {
             onMessageRef.current?.(message);
           } else {
-            console.log('📦 Offline: queuing message for later processing');
+            console.info('📦 Offline: queuing message for later processing');
             enqueueMessage(message);
           }
         } catch (error) {
@@ -322,7 +322,7 @@ export function useServerSentEvents({
         }
       };
 
-      eventSourceRef.current.onerror = (event) => {
+      eventSourceRef.current.onerror = (event: Event): void => {
         const readyState = eventSourceRef.current?.readyState;
         const readyStateText = readyState === 0 ? 'CONNECTING' : readyState === 1 ? 'OPEN' : 'CLOSED';
         
@@ -353,7 +353,7 @@ export function useServerSentEvents({
           // Check if kiosk exists by trying to access the SSE endpoint directly
           // This helps us detect if the kiosk was deleted (will return 404)
           // CRITICAL: Check on first failure BEFORE scheduling any reconnection attempts
-          const checkKioskExists = async () => {
+          const checkKioskExists = async (): Promise<boolean> => {
             try {
               const response = await fetch(sseUrl, { method: 'HEAD' });
               
@@ -378,7 +378,7 @@ export function useServerSentEvents({
           
           // Check kiosk existence on first failure - await it to prevent race condition
           if (failureCountRef.current === 0) {
-            checkKioskExists().then((kioskDeleted) => {
+            void checkKioskExists().then((kioskDeleted) => {
               // If kiosk was deleted, don't proceed with reconnection logic
               if (kioskDeleted) {
                 return;
@@ -393,7 +393,7 @@ export function useServerSentEvents({
           // For subsequent failures, proceed with normal reconnection logic
           proceedWithReconnection();
           
-          function proceedWithReconnection() {
+          function proceedWithReconnection(): void {
             // Circuit breaker and exponential backoff logic
             failureCountRef.current += 1;
             lastFailureTimeRef.current = Date.now();
@@ -409,7 +409,7 @@ export function useServerSentEvents({
             // Check if we should attempt reconnection
             if (shouldReconnectRef.current && reconnectAttempts < maxReconnectAttempts) {
               const delay = calculateReconnectDelay(reconnectAttempts);
-              console.log(`⏳ Scheduling reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts} in ${delay}ms`);
+              console.info(`⏳ Scheduling reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts} in ${delay}ms`);
               
               reconnectTimeoutRef.current = setTimeout(() => {
                 // Use ref to check current state (avoids stale closure)
@@ -438,7 +438,7 @@ export function useServerSentEvents({
   }, [enabled, sseUrl, handleError, processQueue]);
 
   // Stop health check interval (works with both setTimeout and setInterval)
-  const stopHealthCheckInterval = useCallback(() => {
+  const stopHealthCheckInterval = useCallback((): void => {
     if (healthCheckIntervalRef.current) {
       clearTimeout(healthCheckIntervalRef.current);
       healthCheckIntervalRef.current = null;
@@ -449,10 +449,10 @@ export function useServerSentEvents({
     }
     // Reset timer when stopping health checks
     healthCheckStartTimeRef.current = null;
-    console.log('🛑 Stopped periodic health checks');
+    console.info('🛑 Stopped periodic health checks');
   }, []);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback((): void => {
     shouldReconnectRef.current = false;
     isConnectingRef.current = false;
     
@@ -477,7 +477,7 @@ export function useServerSentEvents({
     setConnectionError(null);
   }, [stopHealthCheckInterval]);
 
-  const reconnect = useCallback(() => {
+  const reconnect = useCallback((): void => {
     disconnect();
     shouldReconnectRef.current = true;
     setReconnectAttempts(0);
@@ -492,7 +492,7 @@ export function useServerSentEvents({
   }, []);
 
   // Periodic health check when circuit breaker is open with exponential backoff
-  const startHealthCheckInterval = useCallback(() => {
+  const startHealthCheckInterval = useCallback((): void => {
     // Clear any existing health check interval
     stopHealthCheckInterval();
 
@@ -506,7 +506,7 @@ export function useServerSentEvents({
     if (healthCheckStartTimeRef.current === null) {
       healthCheckStartTimeRef.current = Date.now();
       const maxHours = HEALTH_CHECK_MAX_TOTAL_TIME / (60 * 60 * 1000);
-      console.log(`⏱️ Health check timer started - will stop after ${maxHours} hours total`);
+      console.info(`⏱️ Health check timer started - will stop after ${maxHours} hours total`);
     }
 
     // Reset health check attempts when starting (circuit breaker just opened)
@@ -514,7 +514,7 @@ export function useServerSentEvents({
     healthCheckCurrentIntervalRef.current = null;
 
     // Recursive function to schedule health checks with exponential backoff
-    const scheduleNextHealthCheck = () => {
+    const scheduleNextHealthCheck = (): void => {
       // Check if we've exceeded max attempts
       if (healthCheckAttemptsRef.current >= HEALTH_CHECK_MAX_ATTEMPTS) {
         console.error(`🛑 Hard stop: Maximum health check attempts (${HEALTH_CHECK_MAX_ATTEMPTS}) reached - stopping all reconnection attempts`);
@@ -558,7 +558,7 @@ export function useServerSentEvents({
       const remainingTime = HEALTH_CHECK_MAX_TOTAL_TIME - elapsedTime;
       const remainingMinutes = Math.floor(remainingTime / 60000);
       
-      console.log(`🏥 Scheduling health check ${healthCheckAttemptsRef.current + 1}/${HEALTH_CHECK_MAX_ATTEMPTS} in ${intervalSeconds}s (max interval: ${maxIntervalMinutes}min, elapsed: ${elapsedMinutes}min, remaining: ${remainingMinutes}min)`);
+      console.info(`🏥 Scheduling health check ${healthCheckAttemptsRef.current + 1}/${HEALTH_CHECK_MAX_ATTEMPTS} in ${intervalSeconds}s (max interval: ${maxIntervalMinutes}min, elapsed: ${elapsedMinutes}min, remaining: ${remainingMinutes}min)`);
 
       // Use setTimeout instead of setInterval to allow dynamic interval changes
       healthCheckIntervalRef.current = setTimeout(() => {
@@ -573,7 +573,7 @@ export function useServerSentEvents({
         healthCheckAttemptsRef.current += 1;
 
         // Attempt a health check connection
-        console.log(`🏥 Performing health check attempt ${healthCheckAttemptsRef.current}/${HEALTH_CHECK_MAX_ATTEMPTS}...`);
+        console.info(`🏥 Performing health check attempt ${healthCheckAttemptsRef.current}/${HEALTH_CHECK_MAX_ATTEMPTS}...`);
         
         // Call connect() - if successful, onopen handler will reset circuit breaker and health check state
         // If it fails, onerror will handle it, and we'll schedule the next check with increased interval
@@ -614,27 +614,27 @@ export function useServerSentEvents({
       stopHealthCheckInterval();
     }
 
-    return () => {
+    return (): void => {
       stopHealthCheckInterval();
     };
   }, [circuitBreakerOpen, enabled, startHealthCheckInterval, stopHealthCheckInterval]);
 
   // Main effect - run when enabled or sseUrl changes (sseUrl changes when kioskId changes)
   useEffect(() => {
-    console.log(`🔄 SSE useEffect triggered: enabled=${enabled}, kioskId=${kioskId}, sseUrl=${sseUrl}`);
+    console.info(`🔄 SSE useEffect triggered: enabled=${enabled}, kioskId=${kioskId}, sseUrl=${sseUrl}`);
     
     if (!enabled) {
-      console.log('⏭️ SSE disabled, disconnecting');
+      console.info('⏭️ SSE disabled, disconnecting');
       disconnect();
       return;
     }
 
     shouldReconnectRef.current = true;
-    console.log('🚀 Calling connect() from useEffect');
+    console.info('🚀 Calling connect() from useEffect');
     connect();
 
-    return () => {
-      console.log('🧹 SSE useEffect cleanup - disconnecting');
+    return (): void => {
+      console.info('🧹 SSE useEffect cleanup - disconnecting');
       shouldReconnectRef.current = false;
       
       if (reconnectTimeoutRef.current) {

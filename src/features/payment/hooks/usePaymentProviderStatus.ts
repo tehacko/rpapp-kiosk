@@ -83,8 +83,8 @@ export function usePaymentProviderStatus(): UsePaymentProviderStatusReturn {
         const providers = response.data.providers;
         
         // Find ThePay and QR providers
-        const thepayStatus = providers.find(p => p.name === 'thepay') || null;
-        const qrStatus = providers.find(p => p.name === 'qr') || null;
+        const thepayStatus = providers.find(p => p.name === 'thepay') ?? null;
+        const qrStatus = providers.find(p => p.name === 'qr') ?? null;
         
         setThepay(thepayStatus);
         setQr(qrStatus);
@@ -126,7 +126,7 @@ export function usePaymentProviderStatus(): UsePaymentProviderStatusReturn {
       void fetchStatus();
     }, error ? ERROR_RETRY_INTERVAL_MS : POLLING_INTERVAL_MS);
 
-    return () => {
+    return (): void => {
       isMountedRef.current = false;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -137,7 +137,7 @@ export function usePaymentProviderStatus(): UsePaymentProviderStatusReturn {
 
   // Listen for SSE provider_status_change events for immediate update
   useEffect(() => {
-    const handleSSEMessage = (event: CustomEvent<{ data: string }>) => {
+    const handleSSEMessage = (event: CustomEvent<{ data: string }>): void => {
       try {
         const message = JSON.parse(event.detail.data);
         
@@ -150,7 +150,7 @@ export function usePaymentProviderStatus(): UsePaymentProviderStatusReturn {
             checkedAt: string;
           };
           
-          console.log('📡 [usePaymentProviderStatus] Received provider status change:', message.data);
+          console.info('📡 [usePaymentProviderStatus] Received provider status change:', message.data);
           
           // Update state directly from SSE data (no API call needed)
           if (provider === 'thepay') {
@@ -195,7 +195,7 @@ export function usePaymentProviderStatus(): UsePaymentProviderStatusReturn {
 
     window.addEventListener('websocket-message', handleSSEMessage as EventListener);
     
-    return () => {
+    return (): void => {
       window.removeEventListener('websocket-message', handleSSEMessage as EventListener);
     };
   }, []);

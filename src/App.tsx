@@ -24,7 +24,7 @@ const ThePayMobileThanks = lazy(() =>
 );
 
 // Loading fallback component
-function LoadingSpinner({ message = 'Načítám...' }: { message?: string }) {
+function LoadingSpinner({ message = 'Načítám...' }: { message?: string }): JSX.Element {
   return (
     <div
       style={{
@@ -59,7 +59,7 @@ function LoadingSpinner({ message = 'Načítám...' }: { message?: string }) {
   );
 }
 
-function App() {
+function App(): JSX.Element {
   return (
     <ErrorBoundary>
       <QueryProvider>

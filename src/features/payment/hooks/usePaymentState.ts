@@ -1,7 +1,16 @@
 import { useState, useCallback } from 'react';
-import { PaymentData, MultiProductPaymentData, Cart as CartType } from 'pi-kiosk-shared';
+import type { PaymentData, MultiProductPaymentData, Cart as CartType } from 'pi-kiosk-shared';
 
-export function usePaymentState() {
+export function usePaymentState(): {
+  email: string;
+  selectedPaymentMethod: 'qr' | 'thepay' | undefined;
+  paymentData: PaymentData | MultiProductPaymentData | null;
+  setEmail: (email: string) => void;
+  setSelectedPaymentMethod: (method: 'qr' | 'thepay' | undefined) => void;
+  setPaymentData: (data: PaymentData | MultiProductPaymentData | null) => void;
+  handlePaymentSubmit: (cart: CartType, customerEmail: string, paymentMethod: 'qr' | 'thepay') => Promise<void>;
+  resetPaymentState: () => void;
+} {
   const [email, setEmail] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qr' | 'thepay' | undefined>(undefined);
   const [paymentData, setPaymentData] = useState<PaymentData | MultiProductPaymentData | null>(null);

@@ -16,7 +16,7 @@ function CartHeaderComponent({
   onCheckout, 
   onClear,
   disabled = false
-}: CartHeaderProps) {
+}: CartHeaderProps): JSX.Element | null {
   const handleCheckout = useCallback(() => {
     onCheckout();
   }, [onCheckout]);

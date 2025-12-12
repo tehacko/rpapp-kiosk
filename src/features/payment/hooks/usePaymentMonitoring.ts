@@ -1,13 +1,15 @@
 import { useCallback, useRef } from 'react';
+import type { 
+  PaymentData,
+  MultiProductPaymentData,
+  ApiResponse,
+  StartMonitoringResponse
+} from 'pi-kiosk-shared';
 import { 
   createAPIClient, 
   useErrorHandler, 
   API_ENDPOINTS,
-  PaymentData,
-  MultiProductPaymentData,
-  TransactionStatus,
-  ApiResponse,
-  StartMonitoringResponse
+  TransactionStatus
 } from 'pi-kiosk-shared';
 
 interface PaymentMonitoringActions {
@@ -32,8 +34,8 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
     onPaymentComplete: (data: PaymentData | MultiProductPaymentData) => void,
     onPaymentTimeout: (data: PaymentData | MultiProductPaymentData) => void,
     onPaymentFailed: (data: PaymentData | MultiProductPaymentData) => void
-  ) => {
-    console.log('🔄 Starting fallback polling for payment:', paymentId);
+  ): void => {
+    console.info('🔄 Starting fallback polling for payment:', paymentId);
     let pollCount = 0;
     const maxPolls = 100; // 5 minutes at 3-second intervals
     const startTime = Date.now();
@@ -44,7 +46,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
         const elapsedTime = Date.now() - startTime;
         
         if (pollCount > maxPolls || elapsedTime > 300000) { // 5 minutes timeout
-          console.log('⏰ Polling fallback timed out');
+          console.warn('⏰ Polling fallback timed out');
           clearInterval(interval);
           pollingIntervalRef.current = null;
           
@@ -61,17 +63,17 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
           return;
         }
         
-        const response = await apiClient.get<any>(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
+        const response = await apiClient.get<ApiResponse<{ status: string }>>(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
         
         // Backend returns: { success: true, status: TransactionStatus, transaction: {...}, ... }
         // Frontend expects: { success: true, data: { status: TransactionStatus, ... } }
         // Need to handle both structures for compatibility
-        const status = response.status || response.data?.status;
+        const status = response.status ?? response.data?.status;
         const isCompleted = status === TransactionStatus.COMPLETED || status === 'COMPLETED';
         
         // Debug logging to see what status we're receiving
         if (pollCount === 1 || pollCount % 5 === 0) {
-          console.log(`🔍 [Poll #${pollCount}] Status check response:`, {
+          console.info(`🔍 [Poll #${pollCount}] Status check response:`, {
             success: response.success,
             status: status,
             responseStatus: response.status,
@@ -84,12 +86,12 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
         
         if (response.success && isCompleted) {
           // Extract data from response (handle both response structures)
-          const transaction = response.transaction || response.data?.transaction;
-          const amount = transaction?.amount || response.data?.amount || response.amount || 0;
-          const customerEmail = response.customer?.email || response.data?.customerEmail || response.customerEmail || '';
-          const items = response.items || response.data?.items || [];
+          const transaction = response.transaction ?? response.data?.transaction;
+          const amount = transaction?.amount ?? response.data?.amount ?? response.amount ?? 0;
+          const customerEmail = response.customer?.email ?? response.data?.customerEmail ?? response.customerEmail ?? '';
+          const items = response.items ?? response.data?.items ?? [];
           
-          console.log('✅ Payment completed via polling fallback', {
+          console.info('✅ Payment completed via polling fallback', {
             paymentId,
             status: status,
             amount: amount,
@@ -139,9 +141,9 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
     onPaymentFailed: (data: PaymentData | MultiProductPaymentData) => void
   ) => {
     try {
-      console.log('🔍 Starting payment monitoring for QR payment:', paymentId);
-      console.log('🔍 Endpoint:', API_ENDPOINTS.PAYMENT_START_MONITORING);
-      console.log('🔍 SSE connected:', sseConnected);
+      console.info('🔍 Starting payment monitoring for QR payment:', paymentId);
+      console.info('🔍 Endpoint:', API_ENDPOINTS.PAYMENT_START_MONITORING);
+      console.info('🔍 SSE connected:', sseConnected);
       
       currentPaymentId.current = paymentId;
       
@@ -154,7 +156,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
         });
         
         if (response.success && response.data) {
-          console.log('✅ Backend payment monitoring started successfully:', {
+          console.info('✅ Backend payment monitoring started successfully:', {
             paymentId,
             monitoringStartTime: response.data.monitoringStartTime,
             sseConnected
@@ -167,9 +169,9 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
             startPollingFallback(paymentId, onPaymentComplete, onPaymentTimeout, onPaymentFailed);
           }
           
-          return response.data.monitoringStartTime || null;
+          return response.data.monitoringStartTime ?? null;
         } else {
-          throw new Error(response.message || 'Failed to start payment monitoring');
+          throw new Error(response.message ?? 'Failed to start payment monitoring');
         }
       } catch (backendError) {
         console.error('❌ Error starting backend payment monitoring:', backendError);
@@ -184,7 +186,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
       startPollingFallback(paymentId, onPaymentComplete, onPaymentTimeout, onPaymentFailed);
       return null;
     }
-  }, [apiClient, handleError, startPollingFallback]);
+  }, [apiClient, startPollingFallback]);
 
   const stopMonitoring = useCallback(async () => {
     // Stop frontend polling interval (using ref to always get current value)

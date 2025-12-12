@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Cart, Product } from 'pi-kiosk-shared';
+import type { Cart, Product } from 'pi-kiosk-shared';
 import { createEmptyCart, addToCart, removeFromCart, updateCartItemQuantity } from 'pi-kiosk-shared';
 
 export interface UseCartReturn {
@@ -16,7 +16,7 @@ export interface UseCartReturn {
 export const useCart = (): UseCartReturn => {
   const [cart, setCart] = useState<Cart>(createEmptyCart());
 
-  const addItem = useCallback((product: Product, quantity: number = 1) => {
+  const addItem = useCallback((product: Product, quantity = 1): void => {
     setCart(prevCart => {
       // Create a completely new cart object
       const newCart = {

@@ -1,0 +1,32 @@
+.errorScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #f7f7f7;
+  color: #1f1f1f;
+}
+
+.fullHeight {
+  min-height: 100vh;
+}
+
+.errorContent {
+  max-width: 640px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+}
+
+.message {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: #333;
+}

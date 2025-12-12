@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { KioskProduct } from 'pi-kiosk-shared';
+import type { KioskProduct } from 'pi-kiosk-shared';
 import { ProductGrid } from '../ProductGrid';
 import { CartHeader } from '../../../cart/components/CartHeader';
+import { PaymentUnavailableBanner } from './components';
 import styles from './ProductsScreen.module.css';
 
 interface ProductsScreenProps {
@@ -35,7 +36,7 @@ function ProductsScreenComponent({
   isConnected: _isConnected,
   qrCodeUrl,
   allPaymentsUnavailable = false
-}: ProductsScreenProps) {
+}: ProductsScreenProps): JSX.Element {
   // Memoize header content to prevent unnecessary re-renders
   const headerContent = useMemo(() => {
     if (!isCartEmpty && !qrCodeUrl) {
@@ -60,15 +61,7 @@ function ProductsScreenComponent({
 
   return (
     <div className={styles.productsScreen}>
-      {/* Payment unavailable banner */}
-      {allPaymentsUnavailable && (
-        <div className={styles.paymentUnavailableBanner} role="alert">
-          <span className={styles.bannerIcon} aria-hidden="true">⚠️</span>
-          <span className={styles.bannerText}>
-            Platby jsou dočasně nedostupné. Zkuste to prosím později.
-          </span>
-        </div>
-      )}
+      <PaymentUnavailableBanner show={allPaymentsUnavailable} />
 
       <div className={styles.productsHeader}>{headerContent}</div>
 

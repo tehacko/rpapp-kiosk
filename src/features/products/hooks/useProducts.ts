@@ -7,9 +7,12 @@ import {
   startTransition,
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
+import type {
   KioskProduct,
   APIClient,
+  ApiResponse,
+} from 'pi-kiosk-shared';
+import {
   createAPIClient,
   NetworkError,
   APP_CONFIG,
@@ -17,7 +20,6 @@ import {
   getKioskSecretFromUrl,
   useErrorHandler,
   API_ENDPOINTS,
-  ApiResponse,
 } from 'pi-kiosk-shared';
 
 interface UseProductsOptions {
@@ -30,9 +32,9 @@ export function useProducts(options: UseProductsOptions = {}) {
   const { handleError } = useErrorHandler();
   const queryClient = useQueryClient();
 
-  const kioskId = options.kioskId || getKioskIdFromUrl();
+  const kioskId = options.kioskId ?? getKioskIdFromUrl();
   const kioskSecret = getKioskSecretFromUrl();
-  const apiClient = options.apiClient || createAPIClient(undefined, kioskSecret);
+  const apiClient = options.apiClient ?? createAPIClient(undefined, kioskSecret);
 
   // Extract cache key to memoized constant for exact matching in query keys
   const cacheKey = useMemo(
@@ -105,7 +107,7 @@ export function useProducts(options: UseProductsOptions = {}) {
 
   // Monitor SSE connection status for debugging
   useEffect(() => {
-    console.log(`📡 SSE Connection Status: ${isConnected ? '✅ Connected' : '❌ Disconnected'}`);
+    console.info(`📡 SSE Connection Status: ${isConnected ? '✅ Connected' : '❌ Disconnected'}`);
   }, [isConnected]);
 
   // Use refs to ensure we always have the latest values (prevents stale closures)
@@ -124,13 +126,13 @@ export function useProducts(options: UseProductsOptions = {}) {
 
   // Handle WebSocket updates and admin refresh requests
   useEffect(() => {
-    const handleWebSocketMessage = (event: CustomEvent) => {
+    const handleWebSocketMessage = (event: CustomEvent): void => {
       try {
         const message = JSON.parse(event.detail.data);
 
         // Debug logging for all product_update messages
         if (message.type === 'product_update') {
-          console.log('📡 Received product update via WebSocket:', {
+          console.info('📡 Received product update via WebSocket:', {
             type: message.type,
             updateType: message.updateType,
             data: message.data,
@@ -149,7 +151,7 @@ export function useProducts(options: UseProductsOptions = {}) {
             const currentKioskIdNum = Number(kioskIdRef.current);
 
             // Debug logging for troubleshooting
-            console.log('🔍 DEBUG: Comparing kioskIds for inventory update:', {
+            console.info('🔍 DEBUG: Comparing kioskIds for inventory update:', {
               targetKioskId,
               targetKioskIdNum,
               currentKioskId: kioskIdRef.current,
@@ -162,7 +164,7 @@ export function useProducts(options: UseProductsOptions = {}) {
 
             // Only process if this update is for our kiosk
             if (targetKioskIdNum === currentKioskIdNum && !isNaN(targetKioskIdNum) && !isNaN(currentKioskIdNum)) {
-              console.log(
+              console.info(
                 '📦 Inventory or visibility updated, immediately refreshing products...',
                 {
                   productId,
@@ -187,7 +189,7 @@ export function useProducts(options: UseProductsOptions = {}) {
                       return [];
                     }
                     const filtered = oldData.filter((p) => p.id !== productId);
-                    console.log(
+                    console.info(
                       `✅ Optimistically removed product ${productId} from display (${oldData.length} → ${filtered.length})`
                     );
                     return filtered;
@@ -196,21 +198,21 @@ export function useProducts(options: UseProductsOptions = {}) {
 
                 // Revalidate in background (non-urgent)
                 startTransition(() => {
-                  currentQueryClient.invalidateQueries({
+                  void currentQueryClient.invalidateQueries({
                     queryKey: currentCacheKey,
                   });
                 });
               } else {
                 // URGENT: Show product - force immediate refetch
-                console.log(`🔄 Product ${productId} should be shown, forcing immediate refetch...`);
+                console.info(`🔄 Product ${productId} should be shown, forcing immediate refetch...`);
                 
                 // Cancel any in-flight requests to prevent race conditions
-                currentQueryClient.cancelQueries({
+                void currentQueryClient.cancelQueries({
                   queryKey: currentCacheKey,
                 });
                 
                 // Invalidate to mark data as stale
-                currentQueryClient.invalidateQueries({
+                void currentQueryClient.invalidateQueries({
                   queryKey: currentCacheKey,
                 });
                 
@@ -220,12 +222,12 @@ export function useProducts(options: UseProductsOptions = {}) {
                   type: 'active',
                 });
                 
-                console.log(`⏳ Refetch promise created for product ${productId}, waiting for result...`);
+                console.info(`⏳ Refetch promise created for product ${productId}, waiting for result...`);
                 
-                refetchPromise.then((results) => {
-                  console.log(`📊 Refetch results for product ${productId}:`, {
+                void refetchPromise.then((results) => {
+                  console.info(`📊 Refetch results for product ${productId}:`, {
                     resultsLength: Array.isArray(results) ? results.length : 0,
-                    results: Array.isArray(results) ? results.map((r: any) => ({ 
+                    results: Array.isArray(results) ? results.map((r: { state: { status: string; data: unknown; error: unknown } }) => ({ 
                       state: r.state.status, 
                       dataLength: Array.isArray(r.state.data) ? r.state.data.length : 'not array',
                       error: r.state.error 
@@ -234,12 +236,12 @@ export function useProducts(options: UseProductsOptions = {}) {
                   
                   const currentProducts = currentQueryClient.getQueryData<KioskProduct[]>(currentCacheKey);
                   const hasProduct = currentProducts?.some(p => p.id === productId);
-                  console.log(`✅ Product ${productId} refetch completed. In list: ${hasProduct}, total: ${currentProducts?.length || 0}`);
+                  console.info(`✅ Product ${productId} refetch completed. In list: ${hasProduct}, total: ${currentProducts?.length ?? 0}`);
                   
                   if (!hasProduct) {
                     console.warn(`⚠️ Product ${productId} still not in list after refetch! Retrying in 200ms...`);
                     setTimeout(() => {
-                      currentQueryClient.refetchQueries({
+                      void currentQueryClient.refetchQueries({
                         queryKey: currentCacheKey,
                         type: 'active',
                       });
@@ -249,7 +251,7 @@ export function useProducts(options: UseProductsOptions = {}) {
                   console.error(`❌ Failed to refetch product ${productId}:`, error);
                   // Retry once after 500ms
                   setTimeout(() => {
-                    currentQueryClient.refetchQueries({
+                    void currentQueryClient.refetchQueries({
                       queryKey: currentCacheKey,
                       type: 'active',
                     });
@@ -271,14 +273,14 @@ export function useProducts(options: UseProductsOptions = {}) {
             message.updateType === 'product_created' ||
             message.updateType === 'product_updated'
           ) {
-            console.log('🛍️ Product data changed, immediately refreshing products...');
+            console.info('🛍️ Product data changed, immediately refreshing products...');
             startTransition(() => {
-              queryClientRef.current.invalidateQueries({
+              void queryClientRef.current.invalidateQueries({
                 queryKey: cacheKeyRef.current,
               });
             });
           } else if (message.updateType === 'product_deleted') {
-            console.log('🗑️ Product deleted, immediately refreshing products...');
+            console.info('🗑️ Product deleted, immediately refreshing products...');
             const deletedProductId = message.data?.productId;
             const currentQueryClient = queryClientRef.current;
             const currentCacheKey = cacheKeyRef.current;
@@ -296,7 +298,7 @@ export function useProducts(options: UseProductsOptions = {}) {
                 const filtered = oldData.filter(
                   (p) => p.id !== deletedProductId
                 );
-                console.log(
+                console.info(
                   `✅ Optimistically removed deleted product ${deletedProductId} (${oldData.length} → ${filtered.length})`
                 );
                 return filtered;
@@ -305,14 +307,14 @@ export function useProducts(options: UseProductsOptions = {}) {
 
             // Revalidate in background
             startTransition(() => {
-              currentQueryClient.invalidateQueries({
+              void currentQueryClient.invalidateQueries({
                 queryKey: currentCacheKey,
               });
             });
           } else {
             // Default behavior - non-urgent
             startTransition(() => {
-              queryClientRef.current.invalidateQueries({
+              void queryClientRef.current.invalidateQueries({
                 queryKey: cacheKeyRef.current,
               });
             });
@@ -324,10 +326,10 @@ export function useProducts(options: UseProductsOptions = {}) {
       }
     };
 
-    const handleForceRefresh = () => {
-      console.log('🔄 Force refresh requested, updating products...');
+    const handleForceRefresh = (): void => {
+      console.info('🔄 Force refresh requested, updating products...');
       startTransition(() => {
-        queryClientRef.current.invalidateQueries({
+        void queryClientRef.current.invalidateQueries({
           queryKey: cacheKeyRef.current,
         });
       });
@@ -337,7 +339,7 @@ export function useProducts(options: UseProductsOptions = {}) {
     window.addEventListener('websocket-message', handleWebSocketMessage as EventListener);
     window.addEventListener('force-refresh', handleForceRefresh);
 
-    return () => {
+    return (): void => {
       window.removeEventListener(
         'websocket-message',
         handleWebSocketMessage as EventListener
@@ -363,8 +365,8 @@ export function useProducts(options: UseProductsOptions = {}) {
   );
 
   // Manual refresh function - force refetch to get fresh data
-  const refresh = useCallback(() => {
-    console.log('🔄 Manual refresh triggered, refetching products...');
+  const refresh = useCallback((): Promise<void> => {
+    console.info('🔄 Manual refresh triggered, refetching products...');
     return queryClient.refetchQueries({ queryKey: cacheKey });
   }, [queryClient, cacheKey]);
 

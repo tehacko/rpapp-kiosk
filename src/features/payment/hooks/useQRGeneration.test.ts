@@ -221,7 +221,7 @@ describe('useQRGeneration', () => {
     expect(result.current.isGenerating).toBe(false);
 
     act(() => {
-      result.current.generateQR(mockCart as any, 'test@example.com');
+      void result.current.generateQR(mockCart as any, 'test@example.com');
     });
 
     expect(result.current.isGenerating).toBe(true);

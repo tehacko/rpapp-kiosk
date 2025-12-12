@@ -1,6 +1,7 @@
 // React is not needed with new JSX transform
 import React, { useMemo, useCallback } from 'react';
-import { KioskProduct, UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 'pi-kiosk-shared';
+import type { KioskProduct} from 'pi-kiosk-shared';
+import { UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 'pi-kiosk-shared';
 import styles from './ProductGrid.module.css';
 
 interface ProductGridProps {
@@ -12,7 +13,7 @@ interface ProductGridProps {
   onRetry: () => void;
 }
 
-function ProductGridComponent({ products, onAddToCart, getItemQuantity, isLoading, error, onRetry }: ProductGridProps) {
+function ProductGridComponent({ products, onAddToCart, getItemQuantity, isLoading, error, onRetry }: ProductGridProps): JSX.Element {
   const { retryAction } = useErrorHandler();
 
   // Memoize available products filter - use products directly for immediate updates
@@ -27,14 +28,14 @@ function ProductGridComponent({ products, onAddToCart, getItemQuantity, isLoadin
   const handleAddToCart = useCallback((e: React.MouseEvent, product: KioskProduct) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Adding product to cart:', product.name, 'Event:', e.type);
+    console.info('Adding product to cart:', product.name, 'Event:', e.type);
     onAddToCart(product);
   }, [onAddToCart]);
 
   if (isLoading) {
     return (
       <div className={`${styles.loadingState} ${CSS_CLASSES.LOADING}`}>
-        <div className={styles.spinner} aria-label="Loading"></div>
+        <div className={styles.spinner} aria-label="Loading" />
         <p>{UI_MESSAGES.LOADING_PRODUCTS}</p>
       </div>
     );

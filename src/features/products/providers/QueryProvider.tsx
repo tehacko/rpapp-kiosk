@@ -4,7 +4,8 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ReactNode, useMemo } from 'react';
+import type { ReactNode} from 'react';
+import { useMemo } from 'react';
 import { APP_CONFIG } from 'pi-kiosk-shared';
 
 interface QueryProviderProps {
@@ -46,7 +47,7 @@ function createQueryClient(): QueryClient {
   });
 }
 
-export function QueryProvider({ children }: QueryProviderProps) {
+export function QueryProvider({ children }: QueryProviderProps): JSX.Element {
   // Memoize QueryClient to prevent recreation on every render
   const queryClient = useMemo(() => createQueryClient(), []);
 

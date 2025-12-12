@@ -78,7 +78,7 @@ export function parseAndValidateSSEMessage(
   // Step 4: Schema validation with Zod
   const validationResult = SSEMessageSchema.safeParse(parsed);
   if (!validationResult.success) {
-    const errors = validationResult.error.issues.map((err: any) => ({
+    const errors = validationResult.error.issues.map((err) => ({
       path: err.path.join('.'),
       message: err.message,
       code: err.code,

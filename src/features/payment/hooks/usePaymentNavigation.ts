@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ScreenType, PaymentData, MultiProductPaymentData } from 'pi-kiosk-shared';
+import type { ScreenType, PaymentData, MultiProductPaymentData } from 'pi-kiosk-shared';
 
 interface PaymentNavigationState {
   currentScreen: ScreenType;

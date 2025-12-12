@@ -1,14 +1,16 @@
 import { useState, useCallback } from 'react';
 import QRCode from 'qrcode';
-import {
+import type {
   APIClient,
-  API_ENDPOINTS,
-  APP_CONFIG,
   Cart as CartType,
   MultiProductPaymentData,
+  CreateMultiQRPaymentResponse,
+} from 'pi-kiosk-shared';
+import {
+  API_ENDPOINTS,
+  APP_CONFIG,
   useErrorHandler,
   TransactionStatus,
-  CreateMultiQRPaymentResponse,
 } from 'pi-kiosk-shared';
 
 interface UseQRGenerationProps {
@@ -30,11 +32,11 @@ export function useQRGeneration({
 
   const generateQR = useCallback(
     async (cart: CartType, email: string) => {
-      console.log('Starting QR code generation for cart:', cart, 'email:', email);
+      console.info('Starting QR code generation for cart:', cart, 'email:', email);
       setIsGenerating(true);
       try {
         // Create multi-product payment via backend API
-        console.log('Calling API endpoint:', API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR);
+        console.info('Calling API endpoint:', API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR);
         const response = await apiClient.post<CreateMultiQRPaymentResponse>(API_ENDPOINTS.PAYMENT_CREATE_MULTI_QR, {
           items: cart.items.map((item) => ({
             productId: item.product.id,
@@ -45,7 +47,7 @@ export function useQRGeneration({
           kioskId: kioskId,
         });
 
-        console.log('API response:', response);
+        console.info('API response:', response);
 
         // Backend returns {success: true, data: {...}}
         if (!response || !response.success || !response.data) {
@@ -53,11 +55,11 @@ export function useQRGeneration({
         }
 
         const { paymentId, qrCodeData, amount, customerEmail } = response.data;
-        console.log('QR code data received:', { paymentId, qrCodeData, amount, customerEmail });
+        console.info('QR code data received:', { paymentId, qrCodeData, amount, customerEmail });
 
         // Generate QR code image from the data returned by backend
         // Optimized for bank app scanning with high error correction
-        console.log('Generating QR code image...');
+        console.info('Generating QR code image...');
         const generatedQrUrl = await QRCode.toDataURL(qrCodeData, {
           width: APP_CONFIG.QR_CODE_WIDTH,
           margin: 2,
@@ -68,7 +70,7 @@ export function useQRGeneration({
           errorCorrectionLevel: 'H', // High error correction for better scanning
         });
 
-        console.log('QR code image generated:', generatedQrUrl);
+        console.info('QR code image generated:', generatedQrUrl);
 
         const newPaymentData: MultiProductPaymentData = {
           items: cart.items,
@@ -80,14 +82,14 @@ export function useQRGeneration({
         };
 
         // Set the QR code URL and payment data
-        console.log('Setting QR code URL and payment data...');
+        console.info('Setting QR code URL and payment data...');
         setQrCodeUrl(generatedQrUrl);
         onPaymentDataGenerated(newPaymentData);
 
         // Start SSE-based payment monitoring
         await onPaymentMonitoringStart(paymentId);
 
-        console.log('QR code generated successfully:', { qrCodeUrl: generatedQrUrl, paymentData: newPaymentData });
+        console.info('QR code generated successfully:', { qrCodeUrl: generatedQrUrl, paymentData: newPaymentData });
       } catch (error) {
         console.error('Error creating multi-product payment:', error);
         handleError(error as Error, 'useQRGeneration.generateQR');

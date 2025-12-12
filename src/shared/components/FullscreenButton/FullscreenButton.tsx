@@ -1,8 +1,7 @@
-import { FC } from 'react';
 import { useFullscreen } from '../../../features/kiosk/hooks/useFullscreen';
 import styles from './FullscreenButton.module.css';
 
-export const FullscreenButton: FC = () => {
+export function FullscreenButton(): JSX.Element {
   const { toggleFullscreen } = useFullscreen();
 
   return (

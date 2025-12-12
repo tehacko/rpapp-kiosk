@@ -7,7 +7,7 @@ interface ConnectionStatusProps {
   isConnected: boolean;
 }
 
-export function ConnectionStatus({ isConnected }: ConnectionStatusProps) {
+export function ConnectionStatus({ isConnected }: ConnectionStatusProps): JSX.Element {
   return (
     <div className={`${styles.connectionStatus} ${isConnected ? CSS_CLASSES.CONNECTED : CSS_CLASSES.DISCONNECTED}`}>
       <div className={styles.statusIndicator} role="img" aria-label={isConnected ? 'Connected' : 'Disconnected'}>

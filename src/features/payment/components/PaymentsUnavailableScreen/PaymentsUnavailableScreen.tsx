@@ -15,7 +15,7 @@ interface PaymentsUnavailableScreenProps {
 export function PaymentsUnavailableScreen({
   title = 'Platby dočasně nedostupné',
   message = 'Omlouváme se, všechny platební metody jsou momentálně nedostupné.',
-}: PaymentsUnavailableScreenProps) {
+}: PaymentsUnavailableScreenProps): JSX.Element {
   return (
     <div className={styles.container} data-testid="payments-unavailable-screen">
       <div className={styles.content}>

@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { jest } from '@jest/globals';
 import { ProductGrid } from './ProductGrid';
-import { KioskProduct } from 'pi-kiosk-shared';
+import type { KioskProduct } from 'pi-kiosk-shared';
 import {
   testDataSets
 } from '../../../../__tests__/utils/testData';

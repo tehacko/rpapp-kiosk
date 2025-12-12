@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
-import { PaymentData, MultiProductPaymentData, TransactionStatus } from 'pi-kiosk-shared';
-import { PaymentSuccessScreen, PaymentStatus } from '../../../../shared/components/PaymentSuccessScreen';
+import type { PaymentData, MultiProductPaymentData } from 'pi-kiosk-shared';
+import { TransactionStatus } from 'pi-kiosk-shared';
+import type { PaymentStatus } from '../../../../shared/components/PaymentSuccessScreen';
+import { PaymentSuccessScreen } from '../../../../shared/components/PaymentSuccessScreen';
 
 interface ConfirmationScreenProps {
   paymentData: PaymentData | MultiProductPaymentData;
   onContinue: () => void;
 }
 
-export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScreenProps) {
+export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScreenProps): JSX.Element {
   const [countdown, setCountdown] = useState<number | null>(null);
   
   // Check payment status
@@ -46,7 +48,7 @@ export function ConfirmationScreen({ paymentData, onContinue }: ConfirmationScre
         onContinue();
       }, 60000);
       
-      return () => {
+      return (): void => {
         clearTimeout(redirectTimer);
         clearInterval(countdownInterval);
       };

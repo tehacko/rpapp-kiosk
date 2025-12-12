@@ -1,0 +1,1 @@
+export { KioskScreenRouter } from './KioskScreenRouter';

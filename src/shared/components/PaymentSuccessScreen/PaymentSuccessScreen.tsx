@@ -14,7 +14,7 @@ export function PaymentSuccessScreen({
   customerEmail,
   countdown,
   onContinue
-}: PaymentSuccessScreenProps) {
+}: PaymentSuccessScreenProps): JSX.Element {
   return (
     <div className={styles.successScreen}>
       <div className={styles.successContainer}>

@@ -1,4 +1,5 @@
-import { Component, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { Component } from 'react';
 import styles from './ErrorBoundary.module.css';
 
 interface ErrorBoundaryState {
@@ -21,13 +22,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: { componentStack: string }) {
+  componentDidCatch(error: Error, errorInfo: { componentStack: string }): void {
     console.error('Error Boundary caught an error:', error, errorInfo);
   }
 
-  render() {
+  render(): JSX.Element {
     if (this.state.hasError) {
-      return this.props.fallback || (
+      return this.props.fallback ?? (
         <div className={styles.errorBoundary}>
           <h2>❌ Něco se pokazilo</h2>
           <p>Omlouváme se, došlo k neočekávané chybě.</p>

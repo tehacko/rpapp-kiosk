@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, FC, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { getKioskIdFromUrl, validateKioskId, getKioskSecretFromUrl } from 'pi-kiosk-shared';
 
 interface KioskConfigContextType {
@@ -14,7 +15,7 @@ interface KioskConfigProviderProps {
   children: ReactNode;
 }
 
-export const KioskConfigProvider: FC<KioskConfigProviderProps> = ({ children }) => {
+export function KioskConfigProvider({ children }: KioskConfigProviderProps): JSX.Element {
   const [kioskId, setKioskId] = useState<number | null>(null);
   const [kioskSecret, setKioskSecret] = useState<string | null>(null);
   const [isValid, setIsValid] = useState<boolean>(false);
@@ -30,7 +31,7 @@ export const KioskConfigProvider: FC<KioskConfigProviderProps> = ({ children }) 
       }
 
       setKioskId(id);
-      setKioskSecret(secret || null);
+      setKioskSecret(secret ?? null);
       setIsValid(true);
       setError(null);
     } catch (err) {
@@ -48,12 +49,12 @@ export const KioskConfigProvider: FC<KioskConfigProviderProps> = ({ children }) 
       {children}
     </KioskConfigContext.Provider>
   );
-};
+}
 
-export const useKioskConfig = () => {
+export function useKioskConfig(): KioskConfigContextType {
   const context = useContext(KioskConfigContext);
   if (context === undefined) {
     throw new Error('useKioskConfig must be used within a KioskConfigProvider');
   }
   return context;
-};
+}

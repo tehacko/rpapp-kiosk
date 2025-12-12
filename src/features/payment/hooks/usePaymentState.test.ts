@@ -69,7 +69,7 @@ describe('usePaymentState', () => {
     };
 
     act(() => {
-      result.current.handlePaymentSubmit(mockCart, 'test@example.com', 'qr');
+      void result.current.handlePaymentSubmit(mockCart, 'test@example.com', 'qr');
     });
 
     expect(result.current.email).toBe('test@example.com');

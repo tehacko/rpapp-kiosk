@@ -1,7 +1,9 @@
 import React, { Suspense, lazy } from 'react';
-import { Cart as CartType, PaymentData, MultiProductPaymentData, formatPrice } from 'pi-kiosk-shared';
+import type { Cart as CartType, PaymentData, MultiProductPaymentData } from 'pi-kiosk-shared';
 import { PaymentForm } from '../PaymentForm/PaymentForm';
 import type { ProviderStatus } from '../../hooks/usePaymentProviderStatus';
+import { LoadingSpinner } from '../../../../shared/components';
+import { CartTotalBar, PaymentNavigationBar } from './components';
 import styles from './PaymentScreen.module.css';
 
 // Lazy load heavy payment feature components
@@ -16,39 +18,6 @@ const ThePayPayment = lazy(() =>
     default: module.ThePayPayment,
   }))
 );
-
-// Loading fallback for payment components
-function PaymentComponentLoader() {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-      }}
-    >
-      <div
-        style={{
-          width: '32px',
-          height: '32px',
-          border: '3px solid #f3f3f3',
-          borderTop: '3px solid #3498db',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-        }}
-      />
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
-    </div>
-  );
-}
 
 interface PaymentScreenProps {
   cart: CartType;
@@ -100,7 +69,7 @@ function PaymentScreenComponent({
   onStepChange,
   qrProviderStatus,
   thepayProviderStatus,
-}: PaymentScreenProps) {
+}: PaymentScreenProps): JSX.Element | null {
   if (isCartEmpty) {
     return null; // Should not render if cart is empty
   }
@@ -128,7 +97,7 @@ function PaymentScreenComponent({
           )}
 
           {qrCodeUrl && paymentData && (
-            <Suspense fallback={<PaymentComponentLoader />}>
+            <Suspense fallback={<LoadingSpinner fullHeight={false} message="" />}>
             <QRDisplay 
               qrCodeUrl={qrCodeUrl} 
               paymentData={paymentData} 
@@ -141,7 +110,7 @@ function PaymentScreenComponent({
 
           {/* ThePay Payment Component */}
           {selectedPaymentMethod === 'thepay' && paymentStep === 5 && !qrCodeUrl && (
-            <Suspense fallback={<PaymentComponentLoader />}>
+            <Suspense fallback={<LoadingSpinner fullHeight={false} message="" />}>
             <ThePayPayment
               cart={cart}
               email={email}
@@ -155,37 +124,19 @@ function PaymentScreenComponent({
         </div>
 
         {/* Show total price above buttons on step 1 */}
-        {!qrCodeUrl && paymentStep === 1 && cart && (
-          <div className={`${styles.cartTotalBar} ${
-            cart.items.length === 1 ? styles.size1 :
-            cart.items.length === 2 ? styles.size2 :
-            cart.items.length === 3 ? styles.size3 :
-            ''
-          }`}>
-            <strong>Celkem: {formatPrice(cart.totalAmount)}</strong>
-          </div>
-        )}
+        <CartTotalBar 
+          cart={cart} 
+          show={!qrCodeUrl && paymentStep === 1} 
+        />
 
         {/* Fixed Bottom Button Bar - Always visible on steps 1-3 */}
-        {!qrCodeUrl && paymentStep !== 5 && (
-          <div className={`${styles.paymentButtonsBar} ${
-            paymentStep === 1 && cart.items.length === 1 ? styles.size1 :
-            paymentStep === 1 && cart.items.length === 2 ? styles.size2 :
-            paymentStep === 1 && cart.items.length === 3 ? styles.size3 :
-            ''
-          }`}>
-            <div className={styles.cartButtonsHeader}>
-              <button onClick={onBack} className={styles.clearCartBtnHeader} type="button">
-                ← Zpět
-              </button>
-              {paymentStep !== 3 && (
-                <button onClick={onNext} className={styles.checkoutBtnHeader} type="button">
-                  {paymentStep === 1 || paymentStep === 2 ? '➡️ Další krok' : '💳 Zaplatit'}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        <PaymentNavigationBar
+          paymentStep={paymentStep}
+          cart={cart}
+          show={!qrCodeUrl && paymentStep !== 5}
+          onBack={onBack}
+          onNext={onNext}
+        />
       </div>
     </div>
   );
