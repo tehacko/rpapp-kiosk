@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Cart as CartType, CartItem } from 'pi-kiosk-shared';
 import { formatPrice } from 'pi-kiosk-shared';
 import styles from './Cart.module.css';

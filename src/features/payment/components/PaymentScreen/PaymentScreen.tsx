@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import type { Cart as CartType, PaymentData, MultiProductPaymentData } from 'pi-kiosk-shared';
+import { TransactionStatus } from 'pi-kiosk-shared';
 import { PaymentForm } from '../PaymentForm/PaymentForm';
 import type { ProviderStatus } from '../../hooks/usePaymentProviderStatus';
 import { LoadingSpinner } from '../../../../shared/components';
@@ -115,7 +116,18 @@ function PaymentScreenComponent({
               cart={cart}
               email={email}
               kioskId={kioskId}
-              onPaymentSuccess={onThePayPaymentSuccess}
+              onPaymentSuccess={(thepayResponse) => {
+                // Convert ThePayCreateResponse to MultiProductPaymentData format
+                const paymentData: MultiProductPaymentData = {
+                  paymentId: thepayResponse.paymentId,
+                  totalAmount: thepayResponse.amount,
+                  customerEmail: email,
+                  qrCode: '',
+                  items: cart.items,
+                  status: TransactionStatus.COMPLETED
+                };
+                onThePayPaymentSuccess(paymentData);
+              }}
               onPaymentError={onThePayPaymentError}
               onCancel={onThePayPaymentCancel}
             />

@@ -39,7 +39,14 @@ export function PaymentNavigationBar({
           ← Zpět
         </button>
         {paymentStep !== 3 && (
-          <button onClick={onNext} className={styles.checkoutBtnHeader} type="button">
+          <button 
+            onClick={() => {
+              console.info('🟢 Green button clicked', { paymentStep });
+              onNext();
+            }} 
+            className={styles.checkoutBtnHeader} 
+            type="button"
+          >
             {getNextButtonText()}
           </button>
         )}

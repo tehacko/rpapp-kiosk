@@ -76,7 +76,8 @@ export function ThePayPayment({
     return renderRedirectMode(state.status, state.error, handleRetry, handleCancel);
   }
   
-  return renderQRMode(state.status, state.qrCodeUrl, state.paymentData, state.error, handleRetry, handleCancel);
+  const qrModeResult = renderQRMode(state.status, state.qrCodeUrl, state.paymentData, state.error, handleRetry, handleCancel);
+  return qrModeResult ?? <ThePayProcessingIndicator message="Načítám..." />;
 }
 
 // Render function for redirect mode

@@ -105,7 +105,7 @@ export function useMessageQueue({
 
       queueRef.current.push({
         ...message,
-        queuedAt: new Date().toISOString(),
+        timestamp: message.timestamp ?? new Date().toISOString(),
       });
 
       saveQueue();

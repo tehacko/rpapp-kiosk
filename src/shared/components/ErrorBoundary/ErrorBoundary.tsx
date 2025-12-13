@@ -26,9 +26,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     console.error('Error Boundary caught an error:', error, errorInfo);
   }
 
-  render(): JSX.Element {
+  render(): ReactNode {
     if (this.state.hasError) {
-      return this.props.fallback ?? (
+      const fallback = this.props.fallback ?? (
         <div className={styles.errorBoundary}>
           <h2>❌ Něco se pokazilo</h2>
           <p>Omlouváme se, došlo k neočekávané chybě.</p>
@@ -37,8 +37,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           </button>
         </div>
       );
+      return fallback as JSX.Element;
     }
 
-    return this.props.children;
+    return this.props.children as JSX.Element;
   }
 }

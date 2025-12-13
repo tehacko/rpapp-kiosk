@@ -292,7 +292,7 @@ export function useServerSentEvents({
           
           // Handle ping responses
           if (message.type === 'ping') {
-            console.log('💓 SSE ping received');
+            console.info('💓 SSE ping received');
             return;
           }
           
@@ -435,7 +435,7 @@ export function useServerSentEvents({
       setConnectionError(networkError.message);
       handleError(networkError, 'useSSE.connect');
     }
-  }, [enabled, sseUrl, handleError, processQueue]);
+  }, [enabled, sseUrl, handleError, processQueue, calculateReconnectDelay, enqueueMessage, kioskId, maxReconnectAttempts, reconnectAttempts]);
 
   // Stop health check interval (works with both setTimeout and setInterval)
   const stopHealthCheckInterval = useCallback((): void => {

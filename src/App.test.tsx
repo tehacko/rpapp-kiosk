@@ -8,10 +8,10 @@ import { jest } from '@jest/globals';
 import { TextEncoder, TextDecoder } from 'util';
 
 // Polyfill for react-router DOM TextEncoder usage in jsdom
-// @ts-expect-error - Polyfill for jsdom environment
-global.TextEncoder = TextEncoder;
-// @ts-expect-error - Polyfill for jsdom environment
-global.TextDecoder = TextDecoder;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).TextEncoder = TextEncoder;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).TextDecoder = TextDecoder;
 import App from './App';
 import {
   testDataSets

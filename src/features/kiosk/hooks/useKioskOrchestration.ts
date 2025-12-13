@@ -156,17 +156,20 @@ export function useKioskOrchestration(): KioskViewModel {
     onResetPaymentMethod: () => setSelectedPaymentMethod(undefined),
   });
 
-  const handleSSEMessage = useCallback(createKioskMessageHandler({
-    kioskId,
-    email,
-    qrCodeUrl,
-    cartItems: cart.items,
-    paymentData,
-    goToConfirmation,
-    clearQR,
-    setPaymentStep,
-    setSelectedPaymentMethod,
-  }), [kioskId, email, qrCodeUrl, cart.items, paymentData, goToConfirmation, clearQR, setPaymentStep, setSelectedPaymentMethod]);
+  const handleSSEMessage = useCallback((message: Parameters<ReturnType<typeof createKioskMessageHandler>>[0]): void => {
+    const handler = createKioskMessageHandler({
+      kioskId,
+      email,
+      qrCodeUrl,
+      cartItems: cart.items,
+      paymentData,
+      goToConfirmation,
+      clearQR,
+      setPaymentStep,
+      setSelectedPaymentMethod,
+    });
+    handler(message);
+  }, [kioskId, email, qrCodeUrl, cart.items, paymentData, goToConfirmation, clearQR, setPaymentStep, setSelectedPaymentMethod]);
 
   const handleSSEConnect = useCallback((): void => {
     console.info('📡 SSE connected in KioskApp');
@@ -289,7 +292,7 @@ export function useKioskOrchestration(): KioskViewModel {
     if (!trimmedEmail) {
       return 'Email je povinný';
     }
-    const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       return 'Neplatný formát emailu';
     }
@@ -310,10 +313,14 @@ export function useKioskOrchestration(): KioskViewModel {
   });
 
   const handleNext = useCallback((): void => {
+    console.info('🔵 handleNext called', { currentScreen, paymentStep, email });
     if (currentScreen === 'payment') {
+      console.info('✅ Current screen is payment, calling paymentFlowHandlers.handleNext');
       paymentFlowHandlers.handleNext();
+    } else {
+      console.warn('⚠️ handleNext called but currentScreen is not payment:', currentScreen);
     }
-  }, [currentScreen, paymentFlowHandlers]);
+  }, [currentScreen, paymentFlowHandlers, paymentStep, email]);
 
   const handleBack = useCallback((): void => {
     if (currentScreen === 'payment') {

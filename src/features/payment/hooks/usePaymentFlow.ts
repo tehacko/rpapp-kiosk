@@ -35,18 +35,23 @@ export function usePaymentFlow({
 }: PaymentFlowOptions): [PaymentFlowState, PaymentFlowHandlers] {
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback((): void => {
+    console.info('🟢 usePaymentFlow.handleNext called', { paymentStep, email });
     if (paymentStep === 2) {
+      console.info('📧 Validating email on step 2');
       const error = onValidateEmail(email);
       if (error) {
+        console.warn('❌ Email validation failed:', error);
         setValidationError(error);
         window.dispatchEvent(new CustomEvent('payment-email-validation-error', {
           detail: { error }
         }));
         return;
       }
+      console.info('✅ Email validation passed');
       setValidationError(null);
     }
+    console.info(`➡️ Moving from step ${paymentStep} to step ${paymentStep + 1}`);
     setPaymentStep(paymentStep + 1);
   }, [paymentStep, email, onValidateEmail, setPaymentStep]);
 

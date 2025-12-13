@@ -3,7 +3,8 @@ import type {
   PaymentData,
   MultiProductPaymentData,
   ApiResponse,
-  StartMonitoringResponse
+  StartMonitoringResponse,
+  CartItem
 } from 'pi-kiosk-shared';
 import { 
   createAPIClient, 
@@ -24,7 +25,8 @@ interface PaymentMonitoringActions {
 }
 
 export function usePaymentMonitoring(): PaymentMonitoringActions {
-  const { handleError } = useErrorHandler();
+  // handleError is available but not currently used - errors are handled via callbacks
+  const { handleError: _handleError } = useErrorHandler();
   const apiClient = createAPIClient();
   const currentPaymentId = useRef<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -63,12 +65,11 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
           return;
         }
         
-        const response = await apiClient.get<ApiResponse<{ status: string }>>(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
+        const response = await apiClient.get<ApiResponse<{ status: string; transaction?: { amount: number }; customer?: { email: string }; items?: unknown[]; amount?: number; customerEmail?: string }>>(API_ENDPOINTS.PAYMENT_CHECK_STATUS.replace(':paymentId', paymentId));
         
-        // Backend returns: { success: true, status: TransactionStatus, transaction: {...}, ... }
-        // Frontend expects: { success: true, data: { status: TransactionStatus, ... } }
-        // Need to handle both structures for compatibility
-        const status = response.status ?? response.data?.status;
+        // Backend returns: { success: true, data: { status: TransactionStatus, transaction: {...}, ... } }
+        // Extract status from data object
+        const status = response.data?.status;
         const isCompleted = status === TransactionStatus.COMPLETED || status === 'COMPLETED';
         
         // Debug logging to see what status we're receiving
@@ -76,7 +77,6 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
           console.info(`🔍 [Poll #${pollCount}] Status check response:`, {
             success: response.success,
             status: status,
-            responseStatus: response.status,
             dataStatus: response.data?.status,
             expectedStatus: TransactionStatus.COMPLETED,
             isCompleted: isCompleted,
@@ -84,12 +84,12 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
           });
         }
         
-        if (response.success && isCompleted) {
-          // Extract data from response (handle both response structures)
-          const transaction = response.transaction ?? response.data?.transaction;
-          const amount = transaction?.amount ?? response.data?.amount ?? response.amount ?? 0;
-          const customerEmail = response.customer?.email ?? response.data?.customerEmail ?? response.customerEmail ?? '';
-          const items = response.items ?? response.data?.items ?? [];
+        if (response.success && isCompleted && response.data) {
+          // Extract data from response data object
+          const transaction = response.data.transaction;
+          const amount = transaction?.amount ?? response.data.amount ?? 0;
+          const customerEmail = response.data.customer?.email ?? response.data.customerEmail ?? '';
+          const items = (response.data.items ?? []) as CartItem[];
           
           console.info('✅ Payment completed via polling fallback', {
             paymentId,
@@ -130,7 +130,7 @@ export function usePaymentMonitoring(): PaymentMonitoringActions {
     }, 3000); // Poll every 3 seconds
 
     pollingIntervalRef.current = interval;
-    return interval;
+    return undefined;
   }, [apiClient]);
 
   const startMonitoring = useCallback(async (

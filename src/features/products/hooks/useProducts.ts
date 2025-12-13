@@ -27,7 +27,20 @@ interface UseProductsOptions {
   apiClient?: APIClient;
 }
 
-export function useProducts(options: UseProductsOptions = {}) {
+export function useProducts(options: UseProductsOptions = {}): {
+  products: KioskProduct[];
+  isLoading: boolean;
+  isValidating: boolean;
+  error: Error | null;
+  isConnected: boolean;
+  setIsConnected: (connected: boolean) => void;
+  trackProductClick: (productId: number) => Promise<void>;
+  refresh: () => Promise<void>;
+  revalidate: () => void;
+  hasProducts: boolean;
+  isEmpty: boolean;
+  hasError: boolean;
+} {
   const [isConnected, setIsConnected] = useState(false);
   const { handleError } = useErrorHandler();
   const queryClient = useQueryClient();
@@ -259,7 +272,7 @@ export function useProducts(options: UseProductsOptions = {}) {
                 });
               }
             } else {
-              console.log(
+              console.info(
                 `⏭️ Skipping update for different kiosk: ${targetKioskIdNum} (current: ${currentKioskIdNum})`,
                 {
                   targetType: typeof targetKioskId,

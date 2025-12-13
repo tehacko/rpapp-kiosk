@@ -48,12 +48,12 @@ jest.mock('pi-kiosk-shared', () => ({
         try {
           const result = await fn();
           if (onSuccess) {
-            onSuccess(result);
+            onSuccess();
           }
           return result;
         } catch (error) {
           if (onError) {
-            onError(error);
+            onError(error instanceof Error ? error : new Error(String(error)));
           }
           throw error;
         }
@@ -201,7 +201,7 @@ Object.defineProperty(document, 'fullscreenElement', {
 
 // Suppress React act() warnings in tests
 const originalError = console.error;
-console.error = function(...args: unknown[]) {
+console.error = function(...args: unknown[]): void {
   if (typeof args[0] === 'string' && args[0].includes('Warning: An update to')) {
     return;
   }

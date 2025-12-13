@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import type { PaymentData, MultiProductPaymentData } from 'pi-kiosk-shared';
+import type { PaymentData, MultiProductPaymentData, Cart } from 'pi-kiosk-shared';
 import { createAPIClient } from 'pi-kiosk-shared';
 import { usePaymentMonitoring, useQRGeneration } from '../../payment';
 
@@ -23,7 +23,7 @@ export function usePaymentMonitoringOrchestration({
   qrCodeUrl: string;
   isGeneratingQR: boolean;
   monitoringStartTime: number | null;
-  generateQR: (cart: unknown, email: string) => Promise<void>;
+  generateQR: (cart: Cart, email: string) => Promise<void>;
   clearQR: () => void;
   stopMonitoring: () => Promise<void>;
   handleCancelQRPayment: () => Promise<void>;

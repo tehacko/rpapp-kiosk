@@ -25,7 +25,12 @@ export function useQRGeneration({
   kioskId,
   onPaymentDataGenerated,
   onPaymentMonitoringStart,
-}: UseQRGenerationProps) {
+}: UseQRGenerationProps): {
+  qrCodeUrl: string;
+  isGenerating: boolean;
+  generateQR: (cart: CartType, email: string) => Promise<void>;
+  clearQR: () => void;
+} {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const { handleError } = useErrorHandler();

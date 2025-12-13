@@ -21,7 +21,7 @@ export function KioskConfigProvider({ children }: KioskConfigProviderProps): JSX
   const [isValid, setIsValid] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useEffect((): void => {
     try {
       const id = getKioskIdFromUrl();
       const secret = getKioskSecretFromUrl();
@@ -51,6 +51,7 @@ export function KioskConfigProvider({ children }: KioskConfigProviderProps): JSX
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useKioskConfig(): KioskConfigContextType {
   const context = useContext(KioskConfigContext);
   if (context === undefined) {
