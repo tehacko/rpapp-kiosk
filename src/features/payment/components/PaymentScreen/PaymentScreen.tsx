@@ -3,7 +3,7 @@ import type { Cart as CartType, PaymentData, MultiProductPaymentData } from 'pi-
 import { TransactionStatus } from 'pi-kiosk-shared';
 import { PaymentForm } from '../PaymentForm/PaymentForm';
 import type { ProviderStatus } from '../../hooks/usePaymentProviderStatus';
-import { LoadingSpinner } from '../../../../shared/components';
+import { LoadingSpinner, PaymentAlreadyMadeModal } from '../../../../shared/components';
 import { CartTotalBar, PaymentNavigationBar } from './components';
 import styles from './PaymentScreen.module.css';
 
@@ -45,6 +45,11 @@ interface PaymentScreenProps {
   qrProviderStatus?: ProviderStatus | null;
   /** Provider status for ThePay payments (from usePaymentProviderStatus) */
   thepayProviderStatus?: ProviderStatus | null;
+  /** Modal state for "payment already made" notification */
+  showAlreadyMadeModal: boolean;
+  receiptEmailStatus: 'sent' | 'pending' | 'failed' | 'none';
+  customerEmailForModal: string;
+  onCloseAlreadyMadeModal: () => void;
 }
 
 function PaymentScreenComponent({
@@ -70,6 +75,10 @@ function PaymentScreenComponent({
   onStepChange,
   qrProviderStatus,
   thepayProviderStatus,
+  showAlreadyMadeModal,
+  receiptEmailStatus,
+  customerEmailForModal,
+  onCloseAlreadyMadeModal,
 }: PaymentScreenProps): JSX.Element | null {
   if (isCartEmpty) {
     return null; // Should not render if cart is empty
@@ -150,6 +159,16 @@ function PaymentScreenComponent({
           onNext={onNext}
         />
       </div>
+      
+      {/* Payment Already Made Modal */}
+      {showAlreadyMadeModal && (
+        <PaymentAlreadyMadeModal
+          isOpen={showAlreadyMadeModal}
+          customerEmail={customerEmailForModal}
+          receiptEmailStatus={receiptEmailStatus}
+          onClose={onCloseAlreadyMadeModal}
+        />
+      )}
     </div>
   );
 }
@@ -180,7 +199,12 @@ export const PaymentScreen = React.memo<PaymentScreenProps>(PaymentScreenCompone
     prevProps.onStepChange === nextProps.onStepChange &&
     // Provider status props - must compare for re-render when availability changes
     prevProps.qrProviderStatus?.available === nextProps.qrProviderStatus?.available &&
-    prevProps.thepayProviderStatus?.available === nextProps.thepayProviderStatus?.available
+    prevProps.thepayProviderStatus?.available === nextProps.thepayProviderStatus?.available &&
+    // Modal props - must compare for re-render when modal state changes
+    prevProps.showAlreadyMadeModal === nextProps.showAlreadyMadeModal &&
+    prevProps.receiptEmailStatus === nextProps.receiptEmailStatus &&
+    prevProps.customerEmailForModal === nextProps.customerEmailForModal &&
+    prevProps.onCloseAlreadyMadeModal === nextProps.onCloseAlreadyMadeModal
   );
 });
 

@@ -27,6 +27,10 @@ export function usePaymentMonitoringOrchestration({
   clearQR: () => void;
   stopMonitoring: () => Promise<void>;
   handleCancelQRPayment: () => Promise<void>;
+  showAlreadyMadeModal: boolean;
+  receiptEmailStatus: 'sent' | 'pending' | 'failed' | 'none';
+  customerEmailForModal: string;
+  closeAlreadyMadeModal: () => void;
 } {
   const apiClient = createAPIClient();
   const [monitoringStartTime, setMonitoringStartTime] = useState<number | null>(null);
@@ -38,7 +42,16 @@ export function usePaymentMonitoringOrchestration({
   }, [sseConnected]);
 
   const { startMonitoring, stopMonitoring } = usePaymentMonitoring();
-  const { qrCodeUrl, isGenerating: isGeneratingQR, generateQR, clearQR } = useQRGeneration({
+  const {
+    qrCodeUrl,
+    isGenerating: isGeneratingQR,
+    generateQR,
+    clearQR,
+    showAlreadyMadeModal,
+    receiptEmailStatus,
+    customerEmailForModal,
+    closeAlreadyMadeModal,
+  } = useQRGeneration({
     apiClient,
     kioskId,
     onPaymentDataGenerated: (data) => {
@@ -76,6 +89,10 @@ export function usePaymentMonitoringOrchestration({
     generateQR,
     clearQR,
     stopMonitoring,
-    handleCancelQRPayment
+    handleCancelQRPayment,
+    showAlreadyMadeModal,
+    receiptEmailStatus,
+    customerEmailForModal,
+    closeAlreadyMadeModal,
   };
 }

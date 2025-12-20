@@ -104,6 +104,10 @@ export function KioskScreenRouter({
               onStepChange={paymentVM.onStepChange}
               qrProviderStatus={paymentVM.qrProviderStatus}
               thepayProviderStatus={paymentVM.thepayProviderStatus}
+              showAlreadyMadeModal={paymentVM.showAlreadyMadeModal}
+              receiptEmailStatus={paymentVM.receiptEmailStatus}
+              customerEmailForModal={paymentVM.customerEmailForModal}
+              onCloseAlreadyMadeModal={paymentVM.onCloseAlreadyMadeModal}
             />
           </Suspense>
         </ErrorBoundary>

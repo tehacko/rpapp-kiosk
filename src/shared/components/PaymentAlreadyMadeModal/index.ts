@@ -1,0 +1,1 @@
+export { PaymentAlreadyMadeModal } from './PaymentAlreadyMadeModal';

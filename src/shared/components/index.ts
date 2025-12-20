@@ -5,3 +5,4 @@ export { PaymentSuccessScreen } from './PaymentSuccessScreen';
 export type { PaymentStatus } from './PaymentSuccessScreen';
 export { LoadingSpinner } from './LoadingSpinner';
 export { ErrorScreen } from './ErrorScreen';
+export { PaymentAlreadyMadeModal } from './PaymentAlreadyMadeModal';

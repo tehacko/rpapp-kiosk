@@ -15,12 +15,11 @@ import type {
 import {
   createAPIClient,
   NetworkError,
-  APP_CONFIG,
-  getKioskIdFromUrl,
-  getKioskSecretFromUrl,
-  useErrorHandler,
   API_ENDPOINTS,
 } from 'pi-kiosk-shared';
+import { APP_CONFIG } from '../../../shared/constants';
+import { getKioskIdFromUrl, getKioskSecretFromUrl } from '../../../shared/utils';
+import { useErrorHandler } from '../../../shared/hooks';
 
 interface UseProductsOptions {
   kioskId?: number;

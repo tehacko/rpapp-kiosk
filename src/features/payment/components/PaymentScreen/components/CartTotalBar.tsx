@@ -1,5 +1,5 @@
 import type { Cart} from 'pi-kiosk-shared';
-import { formatPrice } from 'pi-kiosk-shared';
+import { formatPrice } from '../../../../../shared/utils';
 import styles from '../PaymentScreen.module.css';
 
 interface CartTotalBarProps {

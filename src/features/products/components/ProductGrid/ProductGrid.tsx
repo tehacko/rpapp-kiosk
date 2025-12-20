@@ -1,7 +1,9 @@
 // React is not needed with new JSX transform
 import React, { useMemo, useCallback } from 'react';
 import type { KioskProduct} from 'pi-kiosk-shared';
-import { UI_MESSAGES, CSS_CLASSES, useErrorHandler, formatPrice } from 'pi-kiosk-shared';
+import { UI_MESSAGES, CSS_CLASSES } from '../../../../shared/constants';
+import { useErrorHandler } from '../../../../shared/hooks';
+import { formatPrice } from '../../../../shared/utils';
 import styles from './ProductGrid.module.css';
 
 interface ProductGridProps {

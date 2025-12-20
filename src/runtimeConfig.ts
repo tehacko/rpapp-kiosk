@@ -1,4 +1,4 @@
-import type { EnvironmentConfig } from 'pi-kiosk-shared';
+import type { EnvironmentConfig } from './config/environments';
 
 type RuntimeConfig = Partial<EnvironmentConfig>;
 

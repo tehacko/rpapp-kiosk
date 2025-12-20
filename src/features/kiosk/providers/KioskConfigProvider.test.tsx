@@ -8,7 +8,7 @@ jest.mock('pi-kiosk-shared', () => ({
   getKioskSecretFromUrl: jest.fn(),
 }));
 
-import { getKioskIdFromUrl, validateKioskId, getKioskSecretFromUrl } from 'pi-kiosk-shared';
+import { getKioskIdFromUrl, validateKioskId, getKioskSecretFromUrl } from '../../../shared/utils';
 
 const mockGetKioskIdFromUrl = getKioskIdFromUrl as jest.MockedFunction<typeof getKioskIdFromUrl>;
 const mockValidateKioskId = validateKioskId as jest.MockedFunction<typeof validateKioskId>;

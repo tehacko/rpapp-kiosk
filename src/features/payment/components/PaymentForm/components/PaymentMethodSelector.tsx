@@ -1,4 +1,4 @@
-import { CSS_CLASSES } from 'pi-kiosk-shared';
+import { CSS_CLASSES } from '../../../../../shared/constants';
 import type { ProviderStatus } from '../../../hooks/usePaymentProviderStatus';
 import styles from '../PaymentForm.module.css';
 

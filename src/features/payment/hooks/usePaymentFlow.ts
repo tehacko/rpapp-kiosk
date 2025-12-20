@@ -55,9 +55,10 @@ export function usePaymentFlow({
     setPaymentStep(paymentStep + 1);
   }, [paymentStep, email, onValidateEmail, setPaymentStep]);
 
-  const handleBack = useCallback((_isCartEmpty: boolean, onClearCart: () => void, onGoToProducts: () => void) => {
+  const handleBack = useCallback((_isCartEmpty: boolean, _onClearCart: () => void, onGoToProducts: () => void) => {
     if (paymentStep === 1) {
-      onClearCart();
+      // Go back to products screen but preserve cart (user might want to add more items)
+      // Cart is only cleared when explicitly requested (e.g., "Clear Cart" button)
       onGoToProducts();
       setPaymentStep(1);
       return;

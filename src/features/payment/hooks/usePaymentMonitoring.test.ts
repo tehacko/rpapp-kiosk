@@ -18,7 +18,8 @@ jest.mock('pi-kiosk-shared', () => ({
   MultiProductPaymentData: {},
 }));
 
-import { createAPIClient, useErrorHandler } from 'pi-kiosk-shared';
+import { createAPIClient } from 'pi-kiosk-shared';
+import { useErrorHandler } from '../../../shared/hooks';
 
 const mockCreateAPIClient = createAPIClient as jest.MockedFunction<typeof createAPIClient>;
 const mockUseErrorHandler = useErrorHandler as jest.MockedFunction<typeof useErrorHandler>;

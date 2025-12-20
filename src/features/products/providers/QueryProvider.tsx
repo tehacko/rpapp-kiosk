@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { ReactNode} from 'react';
 import { useMemo } from 'react';
-import { APP_CONFIG } from 'pi-kiosk-shared';
+import { APP_CONFIG } from '../../../shared/constants';
 
 interface QueryProviderProps {
   children: ReactNode;

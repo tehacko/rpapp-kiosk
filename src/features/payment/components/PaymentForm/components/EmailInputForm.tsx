@@ -1,4 +1,4 @@
-import { UI_MESSAGES, CSS_CLASSES } from 'pi-kiosk-shared';
+import { UI_MESSAGES, CSS_CLASSES } from '../../../../../shared/constants';
 import styles from '../PaymentForm.module.css';
 
 interface EmailInputFormProps {

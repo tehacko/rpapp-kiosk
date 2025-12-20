@@ -13,6 +13,7 @@
     "deploy:help": "node deploy-kiosk.js --help",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "type-check": "tsc --noEmit",
     "test": "jest --config jest.config.cjs",
     "test:watch": "jest --config jest.config.cjs --watch",
     "test:coverage": "jest --config jest.config.cjs --coverage",
@@ -25,7 +26,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
     "@types/qrcode": "^1.5.5",
-    "pi-kiosk-shared": "^2.1.4",
+    "pi-kiosk-shared": "^2.1.5",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

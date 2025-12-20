@@ -1,6 +1,6 @@
 // React is not needed with new JSX transform
 
-import { CSS_CLASSES } from 'pi-kiosk-shared';
+import { CSS_CLASSES } from '../../constants';
 import styles from './ConnectionStatus.module.css';
 
 interface ConnectionStatusProps {

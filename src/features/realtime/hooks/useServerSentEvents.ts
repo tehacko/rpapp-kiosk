@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { useErrorHandler, getEnvironmentConfig, API_ENDPOINTS } from 'pi-kiosk-shared';
-import { NetworkError } from 'pi-kiosk-shared';
+import { API_ENDPOINTS, NetworkError } from 'pi-kiosk-shared';
+import { useErrorHandler } from '../../../shared/hooks';
+import { getEnvironmentConfig } from '../../../config/environments';
 import { useMessageQueue } from './useMessageQueue';
 import { parseAndValidateSSEMessage } from '../../../shared/utils/sseMessageValidator';
 

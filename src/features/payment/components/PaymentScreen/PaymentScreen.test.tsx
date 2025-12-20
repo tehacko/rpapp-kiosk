@@ -111,6 +111,10 @@ const defaultProps = {
   onBack: jest.fn(),
   onNext: jest.fn(),
   onStepChange: jest.fn(),
+  showAlreadyMadeModal: false,
+  receiptEmailStatus: 'none' as const,
+  customerEmailForModal: '',
+  onCloseAlreadyMadeModal: jest.fn(),
 };
 
 describe('PaymentScreen', () => {

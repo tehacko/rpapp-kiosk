@@ -1,5 +1,6 @@
 import type { PaymentData, MultiProductPaymentData} from 'pi-kiosk-shared';
-import { CSS_CLASSES, formatPrice } from 'pi-kiosk-shared';
+import { CSS_CLASSES } from '../../../../shared/constants';
+import { formatPrice } from '../../../../shared/utils';
 import { usePaymentTimer } from './hooks';
 import styles from './QRDisplay.module.css';
 

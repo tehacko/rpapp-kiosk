@@ -7,9 +7,9 @@ import type {
 } from 'pi-kiosk-shared';
 import {
   createAPIClient,
-  useErrorHandler,
   API_ENDPOINTS
 } from 'pi-kiosk-shared';
+import { useErrorHandler } from '../../../shared/hooks';
 import { useKioskConfig } from '../providers/KioskConfigProvider';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useProducts } from '../../products';
@@ -54,6 +54,9 @@ interface PaymentViewModel {
   isGeneratingQR: boolean;
   kioskId: number;
   monitoringStartTime: number | null;
+  showAlreadyMadeModal: boolean;
+  receiptEmailStatus: 'sent' | 'pending' | 'failed' | 'none';
+  customerEmailForModal: string;
   onEmailChange: (email: string) => void;
   onPaymentMethodSelect: (method: 'qr' | 'thepay' | undefined) => void;
   onPaymentSubmit: (cart: CartType, email: string, method: 'qr' | 'thepay') => Promise<void>;
@@ -62,8 +65,9 @@ interface PaymentViewModel {
   onThePayPaymentError: (error: string) => void;
   onThePayPaymentCancel: () => Promise<void>;
   onBack: () => void;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
   onStepChange: (step: number) => void;
+  onCloseAlreadyMadeModal: () => void;
   qrProviderStatus?: ReturnType<typeof usePaymentProviderStatus>['qr'];
   thepayProviderStatus?: ReturnType<typeof usePaymentProviderStatus>['thepay'];
 }
@@ -103,7 +107,7 @@ export function useKioskOrchestration(): KioskViewModel {
   const { currentScreen, paymentStep, goToPayment, goToProducts, goToConfirmation, setPaymentStep } = usePaymentNavigation();
   const { email, selectedPaymentMethod, paymentData, setEmail, setSelectedPaymentMethod, setPaymentData, resetPaymentState } = usePaymentState();
   // Payment provider status
-  const { thepay: thepayStatus, qr: qrStatus, isLoading: isLoadingProviderStatus } = usePaymentProviderStatus();
+  const { thepay: thepayStatus, qr: qrStatus, isLoading: isLoadingProviderStatus, refresh: _refreshProviderStatus } = usePaymentProviderStatus();
   const hasHandledAllUnavailableRef = useRef(false);
 
   // Payments availability flag
@@ -147,6 +151,10 @@ export function useKioskOrchestration(): KioskViewModel {
     clearQR,
     stopMonitoring,
     handleCancelQRPayment,
+    showAlreadyMadeModal,
+    receiptEmailStatus,
+    customerEmailForModal,
+    closeAlreadyMadeModal,
   } = usePaymentMonitoringOrchestration({
     kioskId: kioskId ?? 0,
     sseConnected: sseConnectedState,
@@ -312,9 +320,11 @@ export function useKioskOrchestration(): KioskViewModel {
     }
   });
 
-  const handleNext = useCallback((): void => {
+  const handleNext = useCallback(async (): Promise<void> => {
     console.info('🔵 handleNext called', { currentScreen, paymentStep, email });
     if (currentScreen === 'payment') {
+      // FIO health check removed from here - it's now only checked right before QR generation
+      // This prevents hitting FIO rate limits during navigation
       console.info('✅ Current screen is payment, calling paymentFlowHandlers.handleNext');
       paymentFlowHandlers.handleNext();
     } else {
@@ -394,6 +404,9 @@ export function useKioskOrchestration(): KioskViewModel {
     isGeneratingQR,
     kioskId: kioskId ?? 0,
     monitoringStartTime,
+    showAlreadyMadeModal,
+    receiptEmailStatus,
+    customerEmailForModal,
     onEmailChange: setEmail,
     onPaymentMethodSelect: setSelectedPaymentMethod,
     onPaymentSubmit: handlePaymentSubmitCallback,
@@ -404,6 +417,7 @@ export function useKioskOrchestration(): KioskViewModel {
     onBack: handleBack,
     onNext: handleNext,
     onStepChange: setPaymentStep,
+    onCloseAlreadyMadeModal: closeAlreadyMadeModal,
     qrProviderStatus: qrStatus,
     thepayProviderStatus: thepayStatus
   };

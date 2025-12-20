@@ -1,5 +1,5 @@
 import type { Cart as CartType, CartItem } from 'pi-kiosk-shared';
-import { formatPrice } from 'pi-kiosk-shared';
+import { formatPrice } from '../../../../shared/utils';
 import styles from './Cart.module.css';
 
 interface CartProps {

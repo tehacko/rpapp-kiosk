@@ -8,10 +8,8 @@ import { jest } from '@jest/globals';
 import { TextEncoder, TextDecoder } from 'util';
 
 // Polyfill for react-router DOM TextEncoder usage in jsdom
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(global as any).TextEncoder = TextEncoder;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(global as any).TextDecoder = TextDecoder;
+(global as unknown as { TextEncoder: typeof TextEncoder; TextDecoder: typeof TextDecoder }).TextEncoder = TextEncoder;
+(global as unknown as { TextEncoder: typeof TextEncoder; TextDecoder: typeof TextDecoder }).TextDecoder = TextDecoder;
 import App from './App';
 import {
   testDataSets

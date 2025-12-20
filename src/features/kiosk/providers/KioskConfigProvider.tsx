@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { getKioskIdFromUrl, validateKioskId, getKioskSecretFromUrl } from 'pi-kiosk-shared';
+import { getKioskIdFromUrl, validateKioskId, getKioskSecretFromUrl } from '../../../shared/utils';
 
 interface KioskConfigContextType {
   kioskId: number | null;

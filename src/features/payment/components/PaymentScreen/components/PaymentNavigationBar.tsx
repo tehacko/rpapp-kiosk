@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { Cart } from 'pi-kiosk-shared';
 import styles from '../PaymentScreen.module.css';
 
@@ -6,7 +7,7 @@ interface PaymentNavigationBarProps {
   cart: Cart;
   show: boolean;
   onBack: () => void;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
 }
 
 export function PaymentNavigationBar({
@@ -16,6 +17,8 @@ export function PaymentNavigationBar({
   onBack,
   onNext
 }: PaymentNavigationBarProps): JSX.Element | null {
+  const isProcessingRef = useRef(false);
+
   if (!show) {
     return null;
   }
@@ -32,6 +35,25 @@ export function PaymentNavigationBar({
     return '💳 Zaplatit';
   };
 
+  const handleNextClick = async (): Promise<void> => {
+    // Prevent multiple rapid clicks
+    if (isProcessingRef.current) {
+      console.info('🟡 Button click ignored - already processing', { paymentStep });
+      return;
+    }
+
+    try {
+      isProcessingRef.current = true;
+      console.info('🟢 Green button clicked', { paymentStep });
+      await onNext();
+    } finally {
+      // Reset after a short delay to allow async operations to complete
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 500);
+    }
+  };
+
   return (
     <div className={`${styles.paymentButtonsBar} ${sizeClass}`}>
       <div className={styles.cartButtonsHeader}>
@@ -40,12 +62,10 @@ export function PaymentNavigationBar({
         </button>
         {paymentStep !== 3 && (
           <button 
-            onClick={() => {
-              console.info('🟢 Green button clicked', { paymentStep });
-              onNext();
-            }} 
+            onClick={handleNextClick}
             className={styles.checkoutBtnHeader} 
             type="button"
+            disabled={isProcessingRef.current}
           >
             {getNextButtonText()}
           </button>

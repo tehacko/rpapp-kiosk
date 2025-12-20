@@ -8,10 +8,10 @@ import type {
 } from 'pi-kiosk-shared';
 import { 
   createAPIClient, 
-  useErrorHandler, 
   API_ENDPOINTS,
   TransactionStatus
 } from 'pi-kiosk-shared';
+import { useErrorHandler } from '../../../shared/hooks';
 
 interface PaymentMonitoringActions {
   startMonitoring: (
