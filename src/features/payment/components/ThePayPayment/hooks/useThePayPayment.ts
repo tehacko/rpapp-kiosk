@@ -10,6 +10,7 @@ import {
   createAPIClient,
   API_ENDPOINTS
 } from 'pi-kiosk-shared';
+import { buildTenantApiBase, getTenantFromPath } from '../../../../../shared/tenant';
 
 // Configuration: Switch between 'redirect' and 'qr' modes
 // TODO: Move to environment config or database setting
@@ -56,7 +57,8 @@ export function useThePayPayment({ cart, email, kioskId, onPaymentError }: ThePa
   handleRetry: () => void;
   setState: React.Dispatch<React.SetStateAction<ThePayPaymentState>>;
 } {
-  const apiClient = createAPIClient();
+  const tenant = getTenantFromPath();
+  const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
   const paymentIdRef = useRef<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   

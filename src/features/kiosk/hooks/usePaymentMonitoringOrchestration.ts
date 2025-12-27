@@ -1,7 +1,9 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import type { PaymentData, MultiProductPaymentData, Cart } from 'pi-kiosk-shared';
 import { createAPIClient } from 'pi-kiosk-shared';
+import { buildTenantApiBase } from '../../../shared/tenant';
 import { usePaymentMonitoring, useQRGeneration } from '../../payment';
+import { getTenantFromPath } from '../../../shared/tenant';
 
 interface PaymentMonitoringDeps {
   kioskId: number;
@@ -32,7 +34,8 @@ export function usePaymentMonitoringOrchestration({
   customerEmailForModal: string;
   closeAlreadyMadeModal: () => void;
 } {
-  const apiClient = createAPIClient();
+  const tenant = getTenantFromPath();
+  const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
   const [monitoringStartTime, setMonitoringStartTime] = useState<number | null>(null);
   const sseConnectedRef = useRef(sseConnected);
 

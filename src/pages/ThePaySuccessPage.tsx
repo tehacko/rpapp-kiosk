@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { ApiResponse } from 'pi-kiosk-shared';
 import { createAPIClient, API_ENDPOINTS } from 'pi-kiosk-shared';
+import { buildTenantApiBase, getTenantFromPath } from '../shared/tenant';
 import type { PaymentStatus } from '../shared/components/PaymentSuccessScreen';
 import { PaymentSuccessScreen } from '../shared/components/PaymentSuccessScreen';
 
@@ -46,7 +47,8 @@ export function ThePaySuccessPage(): JSX.Element {
     if (status === 'cancelled' && currentPaymentId && currentKioskId && 
         currentPaymentId !== 'null' && currentPaymentId !== 'undefined') {
       console.info('📡 Detected cancellation, notifying backend to broadcast to kiosk');
-      const apiClient = createAPIClient();
+      const tenant = getTenantFromPath();
+      const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
       void apiClient.post('/api/payments/thepay-notify-cancellation', {
         paymentId: currentPaymentId,
         kioskId: currentKioskId
@@ -76,7 +78,8 @@ export function ThePaySuccessPage(): JSX.Element {
       return;
     }
 
-    const apiClient = createAPIClient();
+    const tenant = getTenantFromPath();
+    const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
     let pollCount = 0;
     const maxPolls = 20; // Poll for up to 60 seconds (20 * 3s)
 
@@ -234,7 +237,8 @@ export function ThePaySuccessPage(): JSX.Element {
     // Call backend to mark transaction as CANCELLED - validate paymentId first
     if (currentPaymentId && currentPaymentId !== 'null' && currentPaymentId !== 'undefined') {
       try {
-        const apiClient = createAPIClient();
+        const tenant = getTenantFromPath();
+        const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
         await apiClient.post(API_ENDPOINTS.PAYMENT_THEPAY_CANCEL, { paymentId: currentPaymentId });
         console.info('✅ Transaction marked as CANCELLED');
       } catch (error) {

@@ -20,6 +20,8 @@ import {
 import { APP_CONFIG } from '../../../shared/constants';
 import { getKioskIdFromUrl, getKioskSecretFromUrl } from '../../../shared/utils';
 import { useErrorHandler } from '../../../shared/hooks';
+import { getTenantFromPath } from '../../../shared/tenant';
+import { buildTenantApiBase } from '../../../shared/tenant';
 
 interface UseProductsOptions {
   kioskId?: number;
@@ -46,7 +48,8 @@ export function useProducts(options: UseProductsOptions = {}): {
 
   const kioskId = options.kioskId ?? getKioskIdFromUrl();
   const kioskSecret = getKioskSecretFromUrl();
-  const apiClient = options.apiClient ?? createAPIClient(undefined, kioskSecret);
+  const tenant = getTenantFromPath();
+  const apiClient = options.apiClient ?? createAPIClient(buildTenantApiBase(), kioskSecret, tenant ?? undefined);
 
   // Extract cache key to memoized constant for exact matching in query keys
   const cacheKey = useMemo(
@@ -60,10 +63,11 @@ export function useProducts(options: UseProductsOptions = {}): {
       try {
         // Add timestamp to force cache bypass (prevent HTTP 304 Not Modified)
         const timestamp = Date.now();
-        const url = `${API_ENDPOINTS.PRODUCTS}?kioskId=${kioskId}&_t=${timestamp}`;
+        // APIClient will automatically inject tenant into the endpoint
+        const endpoint = `${API_ENDPOINTS.PRODUCTS}?kioskId=${kioskId}&_t=${timestamp}`;
         const response = await apiClient.get<
           ApiResponse<{ products: KioskProduct[] }>
-        >(url);
+        >(endpoint);
 
         if (response.success && response.data?.products) {
           return response.data.products;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createAPIClient, API_ENDPOINTS } from 'pi-kiosk-shared';
+import { buildTenantApiBase, getTenantFromPath } from '../../../shared/tenant';
 
 /**
  * Provider status level
@@ -67,7 +68,8 @@ export function usePaymentProviderStatus(): UsePaymentProviderStatusReturn {
   const [error, setError] = useState<string | null>(null);
   const [lastFetchAt, setLastFetchAt] = useState<Date | null>(null);
   
-  const apiClient = useRef(createAPIClient());
+  const tenant = getTenantFromPath();
+  const apiClient = useRef(createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined));
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
 

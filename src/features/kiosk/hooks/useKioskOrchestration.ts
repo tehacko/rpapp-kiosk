@@ -14,6 +14,7 @@ import { useKioskConfig } from '../providers/KioskConfigProvider';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useProducts } from '../../products';
 import { useCart } from '../../cart';
+import { buildTenantApiBase, getTenantFromPath } from '../../../shared/tenant';
 import {
   usePaymentNavigation,
   usePaymentState,
@@ -100,7 +101,8 @@ export function useKioskOrchestration(): KioskViewModel {
   useFullscreen();
 
   // API client
-  const apiClient = createAPIClient();
+  const tenant = getTenantFromPath();
+  const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
   const { handleError } = useErrorHandler();
 
   // Payment navigation and state

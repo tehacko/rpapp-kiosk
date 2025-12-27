@@ -4,6 +4,7 @@ import { useErrorHandler } from '../../../shared/hooks';
 import { getEnvironmentConfig } from '../../../config/environments';
 import { useMessageQueue } from './useMessageQueue';
 import { parseAndValidateSSEMessage } from '../../../shared/utils/sseMessageValidator';
+import { getTenantFromPath } from '../../../shared/tenant';
 
 export interface SSEMessage {
   type: string;
@@ -91,10 +92,20 @@ export function useServerSentEvents({
   // CRITICAL: Memoize config to prevent unnecessary reconnections
   const config = useMemo(() => getEnvironmentConfig(), []);
   // CRITICAL: Memoize sseUrl to prevent unnecessary reconnections
-  const sseUrl = useMemo(
-    () => `${config.apiUrl}${API_ENDPOINTS.EVENTS.replace(':kioskId', kioskId.toString())}`,
-    [config.apiUrl, kioskId]
-  );
+  // SSE endpoint needs tenant injection too
+  const sseUrl = useMemo(() => {
+    const eventsEndpoint = API_ENDPOINTS.EVENTS.replace(':kioskId', kioskId.toString());
+    // Events endpoint is /events/:kioskId, but we need to inject tenant if present
+    // Since events endpoint doesn't start with /api/, we need special handling
+    const tenant = getTenantFromPath();
+    const baseUrl = config.apiUrl.replace(/\/+$/, ''); // Remove trailing slashes
+    if (tenant && eventsEndpoint.startsWith('/events/')) {
+      // Inject tenant: /events/1 -> /api/tenant2/events/1
+      return `${baseUrl}/api/${tenant}${eventsEndpoint}`;
+    }
+    // Fallback: use original endpoint (for backward compatibility)
+    return `${baseUrl}${eventsEndpoint}`;
+  }, [config.apiUrl, kioskId]);
   // Get health check configuration from config
   const HEALTH_CHECK_INITIAL_INTERVAL = config.sseHealthCheckInitialInterval;
   const HEALTH_CHECK_BACKOFF_MULTIPLIER = config.sseHealthCheckBackoffMultiplier;

@@ -5,6 +5,7 @@ import {
   createAPIClient,
   API_ENDPOINTS
 } from 'pi-kiosk-shared';
+import { buildTenantApiBase, getTenantFromPath } from '../../../../../shared/tenant';
 import { THEPAY_MODE } from './useThePayPayment';
 
 export interface UseThePayPollingDeps {
@@ -21,7 +22,8 @@ export function useThePayPolling({
   enabled 
 }: UseThePayPollingDeps): { stopPolling: () => void } {
   const navigate = useNavigate();
-  const apiClient = createAPIClient();
+  const tenant = getTenantFromPath();
+  const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const paymentIdRef = useRef<string | null>(paymentId);
 

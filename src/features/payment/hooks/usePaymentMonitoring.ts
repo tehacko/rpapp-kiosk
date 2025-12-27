@@ -12,6 +12,8 @@ import {
   TransactionStatus
 } from 'pi-kiosk-shared';
 import { useErrorHandler } from '../../../shared/hooks';
+import { getTenantFromPath } from '../../../shared/tenant';
+import { buildTenantApiBase } from '../../../shared/tenant';
 
 interface PaymentMonitoringActions {
   startMonitoring: (
@@ -27,7 +29,8 @@ interface PaymentMonitoringActions {
 export function usePaymentMonitoring(): PaymentMonitoringActions {
   // handleError is available but not currently used - errors are handled via callbacks
   const { handleError: _handleError } = useErrorHandler();
-  const apiClient = createAPIClient();
+  const tenant = getTenantFromPath();
+  const apiClient = createAPIClient(buildTenantApiBase(), undefined, tenant ?? undefined);
   const currentPaymentId = useRef<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
